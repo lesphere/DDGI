@@ -78,10 +78,11 @@ if(RTXGI_BUILD_SAMPLES)
     # Samples
     add_subdirectory(samples)
 
-    # Set the default project. If D3D is an option, set it as default.
-    if(RTXGI_API_D3D12_ENABLE)
-        set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT TestHarness-D3D12)
-    elseif(NOT RTXGI_API_D3D12_ENABLE AND RTXGI_API_VULKAN_ENABLE)
+    # Set the default project. If VK is an option, set it as default.
+	if(RTXGI_API_VULKAN_ENABLE)
         set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT TestHarness-VK)
+    elseif(RTXGI_API_D3D12_ENABLE)
+        set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT TestHarness-D3D12)
+    
     endif()
 endif()

@@ -1,0 +1,9 @@
+- rewrite HLSL shaders in GLSL
+  - skip light-relative for future work
+    - lights in Descriptors.glsl
+    - lighting.hlsl
+  - in struct DDGIVolumeResourceIndices
+    - store the viwo's handle in the index
+  - write ProbeCommon.glsl
+    - write ProbeRayCommon.glsl
+      - overload for different formats

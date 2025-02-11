@@ -21,6 +21,15 @@ namespace Graphics
             // Private Functions
             //----------------------------------------------------------------------------------------------------------
 
+            bool SaveSPIRV(Globals& vk, Resources& resources, std::ofstream& log)
+            {
+                std::wstring root = std::wstring(vk.shaderCompiler.root.begin(), vk.shaderCompiler.root.end());
+                std::wstring outputPath = root + L"spirv/DDGIProbeTraceRGS.spv"; // File path to save SPIR-V
+                SaveSPIRVToFile(resources.shaders.rgs.bytecode, outputPath, log);
+
+                return true;
+            }
+
             bool LoadAndCompileShaders(Globals& vk, Resources& resources, std::ofstream& log)
             {
                 // Release existing shaders
@@ -373,6 +382,8 @@ namespace Graphics
 
                 if (!UpdateShaderTable(vk, vkResources, resources, log)) return false;
                 if (!UpdateDescriptorSets(vk, vkResources, resources, log)) return false;
+
+                //if (!SaveSPIRV(vk, resources, log)) return false;
 
                 perf.AddStat("GBuffer", resources.cpuStat, resources.gpuStat);
 

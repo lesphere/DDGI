@@ -74,9 +74,36 @@ namespace Graphics
         }
 
         /**
-         * Search a list of physical devices for one that supports a graphics queue.
+         * Check if the device supports required extensions.
          */
-        bool FindPhysicalDeviceWithGraphicsQueue(const std::vector<VkPhysicalDevice>& physicalDevices, VkPhysicalDevice* device, int* graphicsQueueIndex)
+        bool checkDeviceExtensionSupport(VkPhysicalDevice physicalDevice, const std::vector<const char*>& requiredExtensions) {
+            uint32_t extensionCount = 0;
+            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+
+            std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+            // Check if all required extensions are supported
+            for (const char* extension : requiredExtensions) {
+                bool found = false;
+                for (const VkExtensionProperties& ext : availableExtensions) {
+                    if (strcmp(extension, ext.extensionName) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    //std::cerr << "Extension " << extension << " not supported on this device." << std::endl;
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Search a list of physical devices for one that supports a graphics queue and required extensions.
+         */
+        bool FindPhysicalDeviceWithGraphicsQueueAndExtensions(const std::vector<VkPhysicalDevice>& physicalDevices, VkPhysicalDevice* device, int* graphicsQueueIndex, const std::vector<const char*>& deviceExtensions)
         {
             for (uint32_t deviceIndex = 0; deviceIndex < static_cast<uint32_t>(physicalDevices.size()); deviceIndex++)
             {
@@ -92,14 +119,16 @@ namespace Graphics
                 std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertyCount);
                 vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilyProperties.data());
 
+                if (!checkDeviceExtensionSupport(physicalDevice, deviceExtensions)) continue;
+
                 // Inspect the list of properties to see if the physical device supports graphics queues
                 for (uint32_t propertyIndex = 0; propertyIndex < static_cast<uint32_t>(queueFamilyProperties.size()); propertyIndex++)
                 {
                     const VkQueueFamilyProperties props = queueFamilyProperties[propertyIndex];
                     if (props.queueFlags & VK_QUEUE_GRAPHICS_BIT)
                     {
-                        if(device) *device = physicalDevice;
-                        if(graphicsQueueIndex) *graphicsQueueIndex = propertyIndex;
+                        if (device) *device = physicalDevice;
+                        if (graphicsQueueIndex) *graphicsQueueIndex = propertyIndex;
                         return true;
                     }
                 }
@@ -310,8 +339,22 @@ namespace Graphics
             std::vector<VkPhysicalDevice> devices(physicalDeviceCount);
             VKCHECK(vkEnumeratePhysicalDevices(vk.instance, &physicalDeviceCount, devices.data()));
 
+            std::vector<const char*> deviceExtensions =
+            {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+                VK_KHR_RAY_QUERY_EXTENSION_NAME,
+                VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+                VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+                VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+                VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+                VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
+                VK_KHR_MAINTENANCE3_EXTENSION_NAME
+            };
+
             // Find a physical device that supports graphics queues
-            if (!FindPhysicalDeviceWithGraphicsQueue(devices, &vk.physicalDevice, &vk.queueFamilyIndex)) return false;
+            if (!FindPhysicalDeviceWithGraphicsQueueAndExtensions(devices, &vk.physicalDevice, &vk.queueFamilyIndex, deviceExtensions)) return false;
 
             // Describe the device queue
             VkDeviceQueueCreateInfo deviceQueueCreateInfo = {};
@@ -336,20 +379,6 @@ namespace Graphics
 
             deviceCreateInfo.ppEnabledLayerNames = deviceLayerNames.data();
             deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(deviceLayerNames.size());
-
-            std::vector<const char*> deviceExtensions =
-            {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-                VK_KHR_RAY_QUERY_EXTENSION_NAME,
-                VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-                VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-                VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-                VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-                VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
-                VK_KHR_MAINTENANCE3_EXTENSION_NAME
-            };
 
             deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
             deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
@@ -494,7 +523,7 @@ namespace Graphics
             VkExtent2D swapchainSize = {};
             swapchainSize = surfaceCapabilities.currentExtent;
             if (swapchainSize.width != vk.width) return false;
-            if (swapchainSize.height != vk.height) return false;
+            //if (swapchainSize.height != vk.height) return false;
             if (surfaceCapabilities.minImageCount > MAX_FRAMES_IN_FLIGHT) return false;
 
             // Note: maxImageCount of 0 means unlimited number of images
@@ -3666,5 +3695,40 @@ namespace Graphics
     {
         return Graphics::Vulkan::WriteBackBufferToDisk(vk, directory);
     }
+
+    // Convert std::wstring to std::string (UTF-16 to UTF-8)
+    std::string WStringToString(const std::wstring& wideString)
+    {
+        if (wideString.empty()) return {};
+        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wideString.data(), (int)wideString.size(), nullptr, 0, nullptr, nullptr);
+        std::string result(sizeNeeded, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wideString.data(), (int)wideString.size(), &result[0], sizeNeeded, nullptr, nullptr);
+        return result;
+    }
+
+    void SaveSPIRVToFile(IDxcBlob* bytecode, const std::wstring& filePath, std::ofstream& log)
+    {
+        // Open the file in binary mode
+        std::ofstream file(filePath, std::ios::binary);
+        if (!file.is_open())
+        {
+            log << "Failed to open file for writing SPIR-V: " << WStringToString(filePath) << std::endl;
+            return;
+        }
+
+        // Write bytecode data to file
+        file.write(reinterpret_cast<const char*>(bytecode->GetBufferPointer()), bytecode->GetBufferSize());
+        if (file.fail())
+        {
+            log << "Failed to write SPIR-V to file: " << WStringToString(filePath) << std::endl;
+        }
+        else
+        {
+            log << "SPIR-V saved to: " << WStringToString(filePath) << std::endl;
+        }
+
+        file.close();
+    }
+
 
 }

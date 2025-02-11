@@ -1,13 +1,4 @@
-/*
-* Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
-*
-* NVIDIA CORPORATION and its licensors retain all intellectual property
-* and proprietary rights in and to this software, related documentation
-* and any modifications thereto.  Any use, reproduction, disclosure or
-* distribution of this software and related documentation without an express
-* license agreement from NVIDIA CORPORATION is strictly prohibited.
-*/
-
+// deprecated, merged into DDGIVolumeDescGPU.h
 #ifndef RTXGI_DDGI_VOLUME_DESC_GPU_H
 #define RTXGI_DDGI_VOLUME_DESC_GPU_H
 
@@ -17,7 +8,7 @@
     #define int3 ivec3
     #define uint4 uvec4
     // need include "Framework.glsl" before this file
-#elif !defined(HLSL)
+#else
 #include <rtxgi/Math.h>
 #include <rtxgi/Types.h>
 using namespace rtxgi;
@@ -29,6 +20,7 @@ using namespace rtxgi;
  */
 struct DDGIVolumeResourceIndices
 {
+#ifndef GLSL
     uint     rayDataUAVIndex;                    // Index of the ray data UAV on the descriptor heap or in a RWTexture2D resource array
     uint     rayDataSRVIndex;                    // Index of the ray data SRV on the descriptor heap or in a Texture2D resource array
     uint     probeIrradianceUAVIndex;            // Index of the probe irradiance UAV on the descriptor heap or in a RWTexture2DArray resource array
@@ -44,6 +36,10 @@ struct DDGIVolumeResourceIndices
     uint     probeVariabilityAverageUAVIndex;    // Index of the probe variability average UAV on the descriptor heap or in a RWTexture2DArray resource Array
     uint     probeVariabilityAverageSRVIndex;    // Index of the probe variability average SRV on the descriptor heap or in a Texture2DArray resource array
     //------------------------------------------------- 48B
+#else
+    // TODO
+    Image2DArray_format rayDataUAVIndex; // refer format in config
+    TextureRaw2DArray rayDataSRVIndex;
 };
 
 /**
@@ -132,7 +128,7 @@ struct DDGIVolumeDescGPU
     bool     probeVariabilityEnabled;            // whether probe variability is enabled for this volume
 };
 
-#if !defined(HLSL) && !defined(GLSL) // CPU only
+#ifndef GLSL // CPU only
 static inline rtxgi::DDGIVolumeDescGPUPacked PackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPU input)
 {
     rtxgi::DDGIVolumeDescGPUPacked output = {};
@@ -186,9 +182,9 @@ static inline rtxgi::DDGIVolumeDescGPUPacked PackDDGIVolumeDescGPU(const rtxgi::
 
     return output;
 }
-#endif // if !defined(HLSL) && !defined(GLSL)
+#endif // ifndef GLSL
 
-#if !defined(HLSL) && !defined(GLSL) // CPU
+#ifndef GLSL // CPU
 static inline rtxgi::DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPUPacked input)
 {
     rtxgi::DDGIVolumeDescGPU output;
@@ -196,7 +192,7 @@ static inline rtxgi::DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(const rtxgi::DDGI
 DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(DDGIVolumeDescGPUPacked input)
 {
     DDGIVolumeDescGPU output = (DDGIVolumeDescGPU)0;
-#endif // if !defined(HLSL) && !defined(GLSL)
+#endif // ifndef GLSL
     output.origin = input.origin;
     output.probeHysteresis = input.probeHysteresis;
     output.rotation = input.rotation;

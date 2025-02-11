@@ -11,7 +11,8 @@
 #ifndef RTXGI_DDGI_ROOT_CONSTANTS_H
 #define RTXGI_DDGI_ROOT_CONSTANTS_H
 
-#ifndef HLSL
+// #ifndef HLSL
+#if !defined(HLSL) && !defined(GLSL)
 #include "../Types.h"
 using namespace rtxgi;
 #endif
@@ -27,7 +28,8 @@ struct DDGIRootConstants
     uint  reductionInputSizeY;
     uint  reductionInputSizeZ;
 
-#ifndef HLSL
+// #ifndef HLSL
+#if !defined(HLSL) && !defined(GLSL)
     uint32_t data[6] = {};
     static uint32_t GetNum32BitValues() { return 6; }
     static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }

@@ -45,6 +45,9 @@ if(WIN32 AND RTXGI_API_D3D12_DXIL_PATH)
     option(RTXGI_API_D3D12_ENABLE "Enable D3D12 support" ON)
 endif()
 
+message(STATUS "RTXGI_API_D3D12_DXIL_PATH: ${RTXGI_API_D3D12_DXIL_PATH}")
+message(STATUS "RTXGI_API_D3D12_ENABLE: ${RTXGI_API_D3D12_ENABLE}")
+
 # Vulkan
 if(RTXGI_API_VULKAN_SDK)
     option(RTXGI_API_VULKAN_ENABLE "Enable Vulkan support" ON)
@@ -55,6 +58,9 @@ if(RTXGI_API_VULKAN_SDK)
         endif()
     endif()
 endif()
+
+message(STATUS "RTXGI_API_VULKAN_SDK: ${RTXGI_API_VULKAN_SDK}")
+message(STATUS "RTXGI_API_VULKAN_ENABLE: ${RTXGI_API_VULKAN_ENABLE}")
 
 # RTXGI Coordinate System
 set(RTXGI_COORDINATE_SYSTEM "Right Hand, Y-Up" CACHE STRING "The 3D coordinate system to use")

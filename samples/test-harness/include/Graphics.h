@@ -71,4 +71,6 @@ namespace Graphics
 
     bool WriteBackBufferToDisk(Globals& gfx, std::string directory);
 
+    void SaveSPIRVToFile(IDxcBlob* bytecode, const std::wstring& filePath, std::ofstream& log);
+
 }
