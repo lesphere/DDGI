@@ -4,6 +4,7 @@
     - lighting.hlsl
   - in struct DDGIVolumeResourceIndices
     - store the viwo's handle in the index
-  - write ProbeCommon.glsl
-    - write ProbeRayCommon.glsl
-      - overload for different formats
+  - verify the load, store of Image2D(Array)_(format)
+  - verify the load and sample of TextureRaw2D(Array)
+  - write ProbeTraceRGS.glsl
+    - write Irradiance.glsl

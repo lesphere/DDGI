@@ -28,9 +28,16 @@ vec3 DDGILoadProbeDataOffset(TextureRaw2DArray probeData, uvec3 coords, DDGIVolu
 }
 
 /**
- * Reads the probe's position offset (from a Image2DArray) and converts it to a world-space offset.
+ * Reads the probe's position offset (from a Image2DArray_rgba16f) and converts it to a world-space offset.
  */
 vec3 DDGILoadProbeDataOffset(Image2DArray_rgba16f probeData, uvec3 coords, DDGIVolumeDescGPU volume) {
+    return ImageLoad(probeData, coords).xyz * volume.probeSpacing;
+}
+
+/**
+ * Reads the probe's position offset (from a Image2DArray_rgba32f) and converts it to a world-space offset.
+ */
+vec3 DDGILoadProbeDataOffset(Image2DArray_rgba32f probeData, uvec3 coords, DDGIVolumeDescGPU volume) {
     return ImageLoad(probeData, coords).xyz * volume.probeSpacing;
 }
 

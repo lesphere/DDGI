@@ -80,7 +80,7 @@ vec3 DDGILoadProbeRayRadiance(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVo
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4)
     {
-        return RayData[coords].rgb;
+        return ImageLoad(RayData, coords).rgb;
     }
     return vec3(0.f, 0.f, 0.f);
 }
@@ -89,7 +89,7 @@ vec3 DDGILoadProbeRayRadiance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolu
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
     {
-        return RTXGIUintToFloat3(asuint(RayData[coords].r));
+        return RTXGIUintToFloat3(asuint(ImageLoad(RayData, coords).r));
     }
     return vec3(0.f, 0.f, 0.f);
 }
@@ -98,7 +98,7 @@ float DDGILoadProbeRayDistance(Image2DArray_rgba32f RayData, uvec3 coords, DDGIV
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4)
     {
-        return RayData[coords].a;
+        return ImageLoad(RayData, coords).a;
     }
     return 0.f;
 }
@@ -107,7 +107,7 @@ float DDGILoadProbeRayDistance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVol
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
     {
-        return RayData[coords].g;
+        return ImageLoad(RayData, coords).g;
     }
     return 0.f;
 }

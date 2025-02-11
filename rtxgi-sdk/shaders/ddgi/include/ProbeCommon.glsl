@@ -3,9 +3,9 @@
 
 #include "Common.glsl"
 #include "ProbeDataCommon.glsl"
-#include "ProbeRayCommon.hlsl"
-#include "ProbeIndexing.hlsl"
-#include "ProbeOctahedral.hlsl"
+#include "ProbeRayCommon.glsl"
+#include "ProbeIndexing.glsl"
+#include "ProbeOctahedral.glsl"
 
 //------------------------------------------------------------------------
 // Probe World Position
@@ -15,16 +15,16 @@
  * Computes the world-space position of a probe from the probe's 3D grid-space coordinates.
  * Probe relocation is not considered.
  */
-float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume)
+vec3 DDGIGetProbeWorldPosition(ivec3 probeCoords, DDGIVolumeDescGPU volume)
 {
     // Multiply the grid coordinates by the probe spacing
-    float3 probeGridWorldPosition = probeCoords * volume.probeSpacing;
+    vec3 probeGridWorldPosition = probeCoords * volume.probeSpacing;
 
     // Shift the grid of probes by half of each axis extent to center the volume about its origin
-    float3 probeGridShift = (volume.probeSpacing * (volume.probeCounts - 1)) * 0.5f;
+    vec3 probeGridShift = (volume.probeSpacing * (volume.probeCounts - 1)) * 0.5f;
 
     // Center the probe grid about the origin
-    float3 probeWorldPosition = (probeGridWorldPosition - probeGridShift);
+    vec3 probeWorldPosition = (probeGridWorldPosition - probeGridShift);
 
     // Rotate the probe grid if infinite scrolling is not enabled
     if (!IsVolumeMovementScrolling(volume)) probeWorldPosition = RTXGIQuaternionRotate(probeWorldPosition, volume.rotation);
@@ -40,10 +40,10 @@ float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume)
  * When probe relocation is enabled, offsets are loaded from the probe data
  * Texture2D and used to adjust the final world position.
  */
-float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, Texture2DArray<float4> probeData)
+vec3 DDGIGetProbeWorldPosition(ivec3 probeCoords, DDGIVolumeDescGPU volume, TextureRaw2DArray probeData)
 {
     // Get the probe's world-space position
-    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume);
+    vec3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume);
 
     // If the volume has probe relocation enabled, account for the probe offsets
     if (volume.probeRelocationEnabled)
@@ -52,7 +52,7 @@ float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, Tex
         int probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
 
         // Find the texture coordinates of the probe in the Probe Data texture
-        uint3 coords = DDGIGetProbeTexelCoords(probeIndex, volume);
+        uvec3 coords = DDGIGetProbeTexelCoords(probeIndex, volume);
 
         // Load the probe's world-space position offset and add it to the current world position
         probeWorldPosition += DDGILoadProbeDataOffset(probeData, coords, volume);
@@ -64,12 +64,12 @@ float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, Tex
 /**
  * Computes the world-space position of a probe from the probe's 3D grid-space coordinates.
  * When probe relocation is enabled, offsets are loaded from the probe data
- * RWTexture2D and used to adjust the final world position.
+ * Image2DArray_rgba16f and used to adjust the final world position.
  */
-float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, RWTexture2DArray<float4> probeData)
+vec3 DDGIGetProbeWorldPosition(ivec3 probeCoords, DDGIVolumeDescGPU volume, Image2DArray_rgba16f probeData)
 {
     // Get the probe's world-space position
-    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume);
+    vec3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume);
 
     // If the volume has probe relocation enabled, account for the probe offsets
     if (volume.probeRelocationEnabled)
@@ -78,7 +78,7 @@ float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, RWT
         int probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
 
         // Find the texture coordinates of the probe in the Probe Data texture
-        uint3 coords = DDGIGetProbeTexelCoords(probeIndex, volume);
+        uvec3 coords = DDGIGetProbeTexelCoords(probeIndex, volume);
 
         // Load the probe's world-space position offset and add it to the current world position
         probeWorldPosition += DDGILoadProbeDataOffset(probeData, coords, volume);
@@ -87,4 +87,30 @@ float3 DDGIGetProbeWorldPosition(int3 probeCoords, DDGIVolumeDescGPU volume, RWT
     return probeWorldPosition;
 }
 
-#endif // RTXGI_DDGI_PROBE_COMMON_HLSL
+/**
+ * Computes the world-space position of a probe from the probe's 3D grid-space coordinates.
+ * When probe relocation is enabled, offsets are loaded from the probe data
+ * Image2DArray_rgba32f and used to adjust the final world position.
+ */
+vec3 DDGIGetProbeWorldPosition(ivec3 probeCoords, DDGIVolumeDescGPU volume, Image2DArray_rgba32f probeData)
+{
+    // Get the probe's world-space position
+    vec3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume);
+
+    // If the volume has probe relocation enabled, account for the probe offsets
+    if (volume.probeRelocationEnabled)
+    {
+        // Get the scroll adjusted probe index
+        int probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
+
+        // Find the texture coordinates of the probe in the Probe Data texture
+        uvec3 coords = DDGIGetProbeTexelCoords(probeIndex, volume);
+
+        // Load the probe's world-space position offset and add it to the current world position
+        probeWorldPosition += DDGILoadProbeDataOffset(probeData, coords, volume);
+    }
+
+    return probeWorldPosition;
+}
+
+#endif // RTXGI_DDGI_PROBE_COMMON_GLSL

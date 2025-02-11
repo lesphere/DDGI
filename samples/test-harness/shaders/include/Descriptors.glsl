@@ -76,6 +76,7 @@ VIWO_BUFFER_REF(Params) {
     // layout(set = 5, binding = 0) uniform texture2D viwo_texture2D[];
     // struct TextureRaw2D { uint handle; };
     // vec4 Texture(TextureRaw2D tex, sampler s, vec2 p) { return sampler2D(VIWO_ACCESS_BINDLESS_TEXTURERAW(texture2D, tex.handle), s), p); }
+    // vec4 TexelFetch(TextureRaw2D tex, ivec2 p, int lod) { return texelFetch(VIWO_ACCESS_BINDLESS_TEXTURERAW(texture2D, tex.handle), p, lod); }
 
     // for Texture2DArray in HLSL
     // TextureRaw2DArray ddgiTexture;
