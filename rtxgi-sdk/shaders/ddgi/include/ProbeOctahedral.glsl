@@ -1,7 +1,7 @@
 #ifndef RTXGI_DDGI_PROBE_OCTAHEDRAL_GLSL
 #define RTXGI_DDGI_PROBE_OCTAHEDRAL_GLSL
 
-#include "Common.glsl"
+#include "rtxgi-sdk/shaders/ddgi/include/Common.glsl"
 
 //------------------------------------------------------------------------
 // Probe Octahedral Indexing

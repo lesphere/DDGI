@@ -1,13 +1,13 @@
 #ifndef RTXGI_DDGI_IRRADIANCE_GLSL
 #define RTXGI_DDGI_IRRADIANCE_GLSL
 
-#include "rtxgi-sdk/shaders/ddgi/include/ProbeCommon.glsl"
+#include "rtxgi-sdk/shaders/ddgi/include/ProbeCommon_nohandle.glsl"
 
 
 struct DDGIVolumeResources {
-    uint probeIrradianceIdx;
-    uint probeDistanceIdx;
-    uint probeDataIdx;
+    uint probeIrradianceTexIdx;
+    uint probeDistanceTexIdx;
+    uint probeDataTexIdx;
     // sampler bilinearSampler;
 };
 
@@ -82,11 +82,11 @@ vec3 DDGIGetVolumeIrradiance(vec3 worldPosition, vec3 surfaceBias, vec3 directio
         int adjacentProbeIndex = DDGIGetScrollingProbeIndex(adjacentProbeCoords, volume);
 
         // Early Out: don't allow inactive probes to contribute to irradiance
-        int probeState = int(DDGILoadProbeState(adjacentProbeIndex, resources.probeDataIdx, volume));
+        int probeState = int(DDGILoadProbeStateFromTex(adjacentProbeIndex, resources.probeDataTexIdx, volume));
         if (probeState == RTXGI_DDGI_PROBE_STATE_INACTIVE) continue;
 
         // Get the adjacent probe's world position
-        vec3 adjacentProbeWorldPosition = DDGIGetProbeWorldPosition(adjacentProbeCoords, volume, resources.probeDataIdx);
+        vec3 adjacentProbeWorldPosition = DDGIGetProbeWorldPositionFromTex(adjacentProbeCoords, volume, resources.probeDataTexIdx);
 
         // Compute the distance and direction from the (biased and non-biased) shading point and the adjacent probe
         vec3 worldPosToAdjProbe = normalize(adjacentProbeWorldPosition - worldPosition);
@@ -116,7 +116,7 @@ vec3 DDGIGetVolumeIrradiance(vec3 worldPosition, vec3 surfaceBias, vec3 directio
         vec3 probeTextureUV = DDGIGetProbeUV(adjacentProbeIndex, octantCoords, volume.probeNumDistanceInteriorTexels, volume);
 
         // Sample the probe's distance texture to get the mean distance to nearby surfaces
-        vec2 filteredDistance = 2.f * textureLod(sampler2DArray(GetTex2DArray(resources.probeDistanceIdx), BilinearWrapSampler), probeTextureUV, 0).rg;
+        vec2 filteredDistance = 2.f * textureLod(sampler2DArray(GetTex2DArray(resources.probeDistanceTexIdx), BilinearWrapSampler), probeTextureUV, 0).rg;
 
         // Find the variance of the mean distance
         float variance = abs((filteredDistance.x * filteredDistance.x) - filteredDistance.y);
@@ -158,7 +158,7 @@ vec3 DDGIGetVolumeIrradiance(vec3 worldPosition, vec3 surfaceBias, vec3 directio
         probeTextureUV = DDGIGetProbeUV(adjacentProbeIndex, octantCoords, volume.probeNumIrradianceInteriorTexels, volume);
 
         // Sample the probe's irradiance
-        vec3 probeIrradiance = textureLod(sampler2DArray(GetTex2DArray(resources.probeIrradianceIdx), BilinearWrapSampler), probeTextureUV, 0).rgb;
+        vec3 probeIrradiance = textureLod(sampler2DArray(GetTex2DArray(resources.probeIrradianceTexIdx), BilinearWrapSampler), probeTextureUV, 0).rgb;
 
         // Decode the tone curve, but leave a gamma = 2 curve to approximate sRGB blending
         vec3 exponent = vec3(volume.probeIrradianceEncodingGamma * 0.5f);

@@ -46,7 +46,7 @@ namespace Windows
     #endif
 
         glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);   // don't need an OpenGL context with D3D12/Vulkan
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);   // don't need an OpenGL context with D3D12/Vulkan, even if need OpenGL interop but with Vulkan Swapchain
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         // Create the window with GLFW

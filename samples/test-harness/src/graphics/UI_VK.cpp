@@ -36,6 +36,19 @@ namespace Graphics
                 // Initialize ImGui
                 CHECK(ImGui_ImplGlfw_InitForVulkan(vk.window, true), "initialize ImGui for Linux/Vulkan!\n", log);
 
+                // Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!
+                // After creating the Vulkan instance and loading Volk instance functions:
+                bool load_imgui_vulkan_funcs = ImGui_ImplVulkan_LoadFunctions(
+                    [](const char* function_name, void* user_data) {
+                        return vkGetInstanceProcAddr(
+                            static_cast<VkInstance>(user_data),
+                            function_name
+                        );
+                    },
+                    vk.instance // Pass your VkInstance as user_data
+                );
+                IM_ASSERT(load_imgui_vulkan_funcs && "Failed to load ImGui Vulkan functions!");
+
                 // Describe the Vulkan usage
                 ImGui_ImplVulkan_InitInfo initInfo = {};
                 initInfo.Device = vk.device;

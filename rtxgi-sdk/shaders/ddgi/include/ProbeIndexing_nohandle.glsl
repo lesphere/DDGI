@@ -231,27 +231,9 @@ vec3 DDGIGetProbeUV(int probeIndex, vec2 octantCoordinates, int numProbeInterior
 //------------------------------------------------------------------------
 
 /**
- * Loads and returns the probe's classification state (from a Image2DArray_rgba16f).
- */
-// float DDGILoadProbeState(int probeIndex, Image2DArray_rgba16f probeData, DDGIVolumeDescGPU volume)
-// {
-//     float state = RTXGI_DDGI_PROBE_STATE_ACTIVE;
-//     if (volume.probeClassificationEnabled)
-//     {
-//         // Get the probe's texel coordinates in the Probe Data texture
-//         ivec3 probeDataCoords = ivec3(DDGIGetProbeTexelCoords(probeIndex, volume));
-
-//         // Get the probe's classification state
-//         state = ImageLoad(probeData, probeDataCoords).w;
-//     }
-
-//     return state;
-// }
-
-/**
  * Loads and returns the probe's classification state (from a Image2DArray_rgba32f).
  */
-float DDGILoadProbeState(int probeIndex, Image2DArray_rgba32f probeData, DDGIVolumeDescGPU volume)
+float DDGILoadProbeStateFromImage(int probeIndex, uint probeDataImageIndex, DDGIVolumeDescGPU volume)
 {
     float state = RTXGI_DDGI_PROBE_STATE_ACTIVE;
     if (volume.probeClassificationEnabled)
@@ -260,16 +242,16 @@ float DDGILoadProbeState(int probeIndex, Image2DArray_rgba32f probeData, DDGIVol
         ivec3 probeDataCoords = ivec3(DDGIGetProbeTexelCoords(probeIndex, volume));
 
         // Get the probe's classification state
-        state = ImageLoad(probeData, probeDataCoords).w;
+        state = imageLoad(Image2DArray_rgba32f[probeDataImageIndex], probeDataCoords).w;
     }
 
     return state;
 }
 
 /**
- * Loads and returns the probe's classification state (from a probeDataIdx).
+ * Loads and returns the probe's classification state (from a texture2DArray).
  */
-float DDGILoadProbeState(int probeIndex, uint probeDataIdx, DDGIVolumeDescGPU volume)
+float DDGILoadProbeStateFromTex(int probeIndex, uint probeDataTexIdx, DDGIVolumeDescGPU volume)
 {
     float state = RTXGI_DDGI_PROBE_STATE_ACTIVE;
     if (volume.probeClassificationEnabled)
@@ -278,7 +260,7 @@ float DDGILoadProbeState(int probeIndex, uint probeDataIdx, DDGIVolumeDescGPU vo
         ivec3 probeDataCoords = ivec3(DDGIGetProbeTexelCoords(probeIndex, volume));
 
         // Get the probe's classification state
-        state = texelFetch(GetTex2DArray(probeDataIdx), probeDataCoords, 0).w;
+        state = texelFetch(GetTex2DArray(probeDataTexIdx), probeDataCoords, 0).w;
     }
 
     return state;

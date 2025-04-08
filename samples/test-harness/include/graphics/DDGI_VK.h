@@ -25,6 +25,7 @@ namespace Graphics
                 VkImage                         output = nullptr;
                 VkDeviceMemory                  outputMemory = nullptr;
                 VkImageView                     outputView = nullptr;
+                uint32_t                        outputHandleStorage = 0;
 
                 // Shaders
                 Shaders::ShaderRTPipeline       rtShaders;
@@ -41,6 +42,15 @@ namespace Graphics
                 VkDeviceMemory                  shaderTableUploadMemory = nullptr;
 
                 VkDescriptorSet                 descriptorSet = nullptr;
+
+                // for GLSL
+                //VkDescriptorSet                 _buffer_desc_set = nullptr;
+                //VkDescriptorSet                 _combined_image_sampler_desc_set = nullptr;
+                //VkDescriptorSet                 _storage_image_desc_set = nullptr;
+                //VkDescriptorSet                 _acceleration_structure_desc_set = nullptr;
+                //VkDescriptorSet                 _sampler_desc_set = nullptr;
+                //VkDescriptorSet                 _sampled_image_desc_set = nullptr;
+
                 VkPipeline                      rtPipeline = nullptr;
                 VkPipeline                      indirectPipeline = nullptr;
 
@@ -69,12 +79,14 @@ namespace Graphics
                 VkDeviceMemory                  volumeResourceIndicesSTBMemory = nullptr;
                 VkDeviceMemory                  volumeResourceIndicesSTBUploadMemory = nullptr;
                 uint64_t                        volumeResourceIndicesSTBSizeInBytes = 0;
+                uint32_t                        volumeResourceIndicesHandle = 0;
 
                 VkBuffer                        volumeConstantsSTB = nullptr;
                 VkBuffer                        volumeConstantsSTBUpload = nullptr;
                 VkDeviceMemory                  volumeConstantsSTBMemory = nullptr;
                 VkDeviceMemory                  volumeConstantsSTBUploadMemory = nullptr;
                 uint64_t                        volumeConstantsSTBSizeInBytes = 0;
+                uint32_t                        volumeConstantsHandle = 0;
 
                 // Variability Tracking
                 std::vector<uint32_t>           numVolumeVariabilitySamples;

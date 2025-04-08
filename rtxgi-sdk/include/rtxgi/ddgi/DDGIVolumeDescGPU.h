@@ -1,13 +1,3 @@
-/*
-* Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
-*
-* NVIDIA CORPORATION and its licensors retain all intellectual property
-* and proprietary rights in and to this software, related documentation
-* and any modifications thereto.  Any use, reproduction, disclosure or
-* distribution of this software and related documentation without an express
-* license agreement from NVIDIA CORPORATION is strictly prohibited.
-*/
-
 #ifndef RTXGI_DDGI_VOLUME_DESC_GPU_H
 #define RTXGI_DDGI_VOLUME_DESC_GPU_H
 
@@ -15,12 +5,13 @@
     #define float3 vec3
     #define float4 vec4
     #define int3 ivec3
+    #define uint3 uvec3
     #define uint4 uvec4
     // need include "Framework.glsl" before this file
 #elif !defined(HLSL)
-#include <rtxgi/Math.h>
-#include <rtxgi/Types.h>
-using namespace rtxgi;
+    #include <rtxgi/Math.h>
+    #include <rtxgi/Types.h>
+    using namespace rtxgi;
 #endif
 
 /**
@@ -44,6 +35,16 @@ struct DDGIVolumeResourceIndices
     uint     probeVariabilityAverageUAVIndex;    // Index of the probe variability average UAV on the descriptor heap or in a RWTexture2DArray resource Array
     uint     probeVariabilityAverageSRVIndex;    // Index of the probe variability average SRV on the descriptor heap or in a Texture2DArray resource array
     //------------------------------------------------- 48B
+#if defined(GLSL) || defined(HLSL)
+    #define uint32_t uint
+#endif
+    uint32_t rayDataHandleStorage;                      // Handle of the ray data texture for storage descriptor
+    uint32_t probeIrradianceHandleStorage;              // Handle of the probe irradiance texture for storage descriptor
+    uint32_t probeDistanceHandleStorage;                // Handle of the probe distance texture for storage descriptor
+    uint32_t probeDataHandleStorage;                    // Handle of the probe data texture for storage descriptor
+    uint32_t probeVariabilityHandleStorage;             // Handle of the probe variability texture for storage descriptor
+    uint32_t probeVariabilityAverageHandleStorage;      // Handle of the probe variability average texture for storage descriptor
+    //------------------------------------------------- 72B
 };
 
 /**
@@ -132,122 +133,122 @@ struct DDGIVolumeDescGPU
     bool     probeVariabilityEnabled;            // whether probe variability is enabled for this volume
 };
 
-#if !defined(HLSL) && !defined(GLSL) // CPU only
-static inline rtxgi::DDGIVolumeDescGPUPacked PackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPU input)
+#if !defined(GLSL) && !defined(HLSL) // CPU only
+static inline rtxgi::DDGIVolumeDescGPUPacked PackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPU unpacked)
 {
-    rtxgi::DDGIVolumeDescGPUPacked output = {};
+    rtxgi::DDGIVolumeDescGPUPacked packed = {};
 
-    output.origin = input.origin;
-    output.probeHysteresis = input.probeHysteresis;
-    output.rotation = input.rotation;
-    output.probeRayRotation = input.probeRayRotation;
-    output.probeMaxRayDistance = input.probeMaxRayDistance;
-    output.probeNormalBias = input.probeNormalBias;
-    output.probeViewBias = input.probeViewBias;
-    output.probeDistanceExponent = input.probeDistanceExponent;
-    output.probeIrradianceEncodingGamma = input.probeIrradianceEncodingGamma;
-    output.probeIrradianceThreshold = input.probeIrradianceThreshold;
-    output.probeBrightnessThreshold = input.probeBrightnessThreshold;
-    output.probeMinFrontfaceDistance = input.probeMinFrontfaceDistance;
-    output.probeSpacing = input.probeSpacing;
+    packed.origin = unpacked.origin;
+    packed.probeHysteresis = unpacked.probeHysteresis;
+    packed.rotation = unpacked.rotation;
+    packed.probeRayRotation = unpacked.probeRayRotation;
+    packed.probeMaxRayDistance = unpacked.probeMaxRayDistance;
+    packed.probeNormalBias = unpacked.probeNormalBias;
+    packed.probeViewBias = unpacked.probeViewBias;
+    packed.probeDistanceExponent = unpacked.probeDistanceExponent;
+    packed.probeIrradianceEncodingGamma = unpacked.probeIrradianceEncodingGamma;
+    packed.probeIrradianceThreshold = unpacked.probeIrradianceThreshold;
+    packed.probeBrightnessThreshold = unpacked.probeBrightnessThreshold;
+    packed.probeMinFrontfaceDistance = unpacked.probeMinFrontfaceDistance;
+    packed.probeSpacing = unpacked.probeSpacing;
 
-    output.packed0  = (uint32_t)input.probeCounts.x;
-    output.packed0 |= (uint32_t)input.probeCounts.y << 10;
-    output.packed0 |= (uint32_t)input.probeCounts.z << 20;
+    packed.packed0  = (uint32_t)unpacked.probeCounts.x;
+    packed.packed0 |= (uint32_t)unpacked.probeCounts.y << 10;
+    packed.packed0 |= (uint32_t)unpacked.probeCounts.z << 20;
 
-    output.packed1  = (uint32_t)(input.probeRandomRayBackfaceThreshold * 65535);
-    output.packed1 |= (uint32_t)(input.probeFixedRayBackfaceThreshold * 65535) << 16;
+    packed.packed1  = (uint32_t)(unpacked.probeRandomRayBackfaceThreshold * 65535);
+    packed.packed1 |= (uint32_t)(unpacked.probeFixedRayBackfaceThreshold * 65535) << 16;
 
-    output.packed2  = (uint32_t)input.probeNumRays;
-    output.packed2 |= (uint32_t)input.probeNumIrradianceInteriorTexels << 16;
-    output.packed2 |= (uint32_t)input.probeNumDistanceInteriorTexels << 24;
+    packed.packed2  = (uint32_t)unpacked.probeNumRays;
+    packed.packed2 |= (uint32_t)unpacked.probeNumIrradianceInteriorTexels << 16;
+    packed.packed2 |= (uint32_t)unpacked.probeNumDistanceInteriorTexels << 24;
 
     // Probe Scroll Offsets
-    output.packed3 = (output.packed3 & ~0x7FFF)     | abs(input.probeScrollOffsets.x);
-    output.packed3 = (output.packed3 & ~0x8000)     | ((input.probeScrollOffsets.x < 0) << 15);
-    output.packed3 = (output.packed3 & ~0x10000)    | abs(input.probeScrollOffsets.y) << 16;
-    output.packed3 = (output.packed3 & ~0x80000000) | ((input.probeScrollOffsets.y < 0) << 31);
-    output.packed4 = (output.packed4 & ~0x7FFF)     | abs(input.probeScrollOffsets.z);
-    output.packed4 = (output.packed4 & ~0x8000)     | ((input.probeScrollOffsets.z < 0) << 15);
+    packed.packed3 = (packed.packed3 & ~0x7FFF)     | abs(unpacked.probeScrollOffsets.x);
+    packed.packed3 = (packed.packed3 & ~0x8000)     | ((unpacked.probeScrollOffsets.x < 0) << 15);
+    packed.packed3 = (packed.packed3 & ~0x10000)    | abs(unpacked.probeScrollOffsets.y) << 16;
+    packed.packed3 = (packed.packed3 & ~0x80000000) | ((unpacked.probeScrollOffsets.y < 0) << 31);
+    packed.packed4 = (packed.packed4 & ~0x7FFF)     | abs(unpacked.probeScrollOffsets.z);
+    packed.packed4 = (packed.packed4 & ~0x8000)     | ((unpacked.probeScrollOffsets.z < 0) << 15);
 
     // Feature Bits
-    output.packed4 = (output.packed4 & ~0x10000)    | (input.movementType << 16);
-    output.packed4 = (output.packed4 & ~0xE0000)    | (input.probeRayDataFormat << 17);
-    output.packed4 = (output.packed4 & ~0x700000)   | (input.probeIrradianceFormat << 20);
-    output.packed4 = (output.packed4 & ~0x800000)   | (input.probeRelocationEnabled << 23);
-    output.packed4 = (output.packed4 & ~0x1000000)  | (input.probeClassificationEnabled << 24);
-    output.packed4 = (output.packed4 & ~0x2000000)  | (input.probeVariabilityEnabled << 25);
-    output.packed4 = (output.packed4 & ~0x4000000)  | (input.probeScrollClear[0] << 26);
-    output.packed4 = (output.packed4 & ~0x8000000)  | (input.probeScrollClear[1] << 27);
-    output.packed4 = (output.packed4 & ~0x10000000) | (input.probeScrollClear[2] << 28);
-    output.packed4 = (output.packed4 & ~0x20000000) | (input.probeScrollDirections[0] << 29);
-    output.packed4 = (output.packed4 & ~0x40000000) | (input.probeScrollDirections[1] << 30);
-    output.packed4 = (output.packed4 & ~0x80000000) | (input.probeScrollDirections[2] << 31);
+    packed.packed4 = (packed.packed4 & ~0x10000)    | (unpacked.movementType << 16);
+    packed.packed4 = (packed.packed4 & ~0xE0000)    | (unpacked.probeRayDataFormat << 17);
+    packed.packed4 = (packed.packed4 & ~0x700000)   | (unpacked.probeIrradianceFormat << 20);
+    packed.packed4 = (packed.packed4 & ~0x800000)   | (unpacked.probeRelocationEnabled << 23);
+    packed.packed4 = (packed.packed4 & ~0x1000000)  | (unpacked.probeClassificationEnabled << 24);
+    packed.packed4 = (packed.packed4 & ~0x2000000)  | (unpacked.probeVariabilityEnabled << 25);
+    packed.packed4 = (packed.packed4 & ~0x4000000)  | (unpacked.probeScrollClear[0] << 26);
+    packed.packed4 = (packed.packed4 & ~0x8000000)  | (unpacked.probeScrollClear[1] << 27);
+    packed.packed4 = (packed.packed4 & ~0x10000000) | (unpacked.probeScrollClear[2] << 28);
+    packed.packed4 = (packed.packed4 & ~0x20000000) | (unpacked.probeScrollDirections[0] << 29);
+    packed.packed4 = (packed.packed4 & ~0x40000000) | (unpacked.probeScrollDirections[1] << 30);
+    packed.packed4 = (packed.packed4 & ~0x80000000) | (unpacked.probeScrollDirections[2] << 31);
 
-    return output;
+    return packed;
 }
-#endif // if !defined(HLSL) && !defined(GLSL)
+#endif // if !defined(GLSL) && !defined(HLSL)
 
-#if !defined(HLSL) && !defined(GLSL) // CPU
-static inline rtxgi::DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPUPacked input)
+#if !defined(GLSL) && !defined(HLSL) // CPU
+static inline rtxgi::DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(const rtxgi::DDGIVolumeDescGPUPacked packed)
 {
-    rtxgi::DDGIVolumeDescGPU output;
+    rtxgi::DDGIVolumeDescGPU unpacked;
 #else // GPU
-DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(DDGIVolumeDescGPUPacked input)
+DDGIVolumeDescGPU UnpackDDGIVolumeDescGPU(DDGIVolumeDescGPUPacked packed)
 {
-    DDGIVolumeDescGPU output = (DDGIVolumeDescGPU)0;
-#endif // if !defined(HLSL) && !defined(GLSL)
-    output.origin = input.origin;
-    output.probeHysteresis = input.probeHysteresis;
-    output.rotation = input.rotation;
-    output.probeRayRotation = input.probeRayRotation;
-    output.probeMaxRayDistance = input.probeMaxRayDistance;
-    output.probeNormalBias = input.probeNormalBias;
-    output.probeViewBias = input.probeViewBias;
-    output.probeDistanceExponent = input.probeDistanceExponent;
-    output.probeIrradianceEncodingGamma = input.probeIrradianceEncodingGamma;
-    output.probeIrradianceThreshold = input.probeIrradianceThreshold;
-    output.probeBrightnessThreshold = input.probeBrightnessThreshold;
-    output.probeMinFrontfaceDistance = input.probeMinFrontfaceDistance;
-    output.probeSpacing = input.probeSpacing;
+    DDGIVolumeDescGPU unpacked;
+#endif // if !defined(GLSL) && !defined(HLSL)
+    unpacked.origin = packed.origin;
+    unpacked.probeHysteresis = packed.probeHysteresis;
+    unpacked.rotation = packed.rotation;
+    unpacked.probeRayRotation = packed.probeRayRotation;
+    unpacked.probeMaxRayDistance = packed.probeMaxRayDistance;
+    unpacked.probeNormalBias = packed.probeNormalBias;
+    unpacked.probeViewBias = packed.probeViewBias;
+    unpacked.probeDistanceExponent = packed.probeDistanceExponent;
+    unpacked.probeIrradianceEncodingGamma = packed.probeIrradianceEncodingGamma;
+    unpacked.probeIrradianceThreshold = packed.probeIrradianceThreshold;
+    unpacked.probeBrightnessThreshold = packed.probeBrightnessThreshold;
+    unpacked.probeMinFrontfaceDistance = packed.probeMinFrontfaceDistance;
+    unpacked.probeSpacing = packed.probeSpacing;
 
     // Probe Counts
-    output.probeCounts.x = input.packed0 & 0x000003FF;
-    output.probeCounts.y = (input.packed0 >> 10) & 0x000003FF;
-    output.probeCounts.z = (input.packed0 >> 20) & 0x000003FF;
+    unpacked.probeCounts.x = int(packed.packed0 & 0x000003FFu);
+    unpacked.probeCounts.y = int((packed.packed0 >> 10) & 0x000003FFu);
+    unpacked.probeCounts.z = int((packed.packed0 >> 20) & 0x000003FFu);
 
     // Thresholds
-    output.probeRandomRayBackfaceThreshold = (float)(input.packed1 & 0x0000FFFF) / 65535.f;
-    output.probeFixedRayBackfaceThreshold = (float)((input.packed1 >> 16) & 0x0000FFFF) / 65535.f;
+    unpacked.probeRandomRayBackfaceThreshold = float(packed.packed1 & 0x0000FFFF) / 65535.f;
+    unpacked.probeFixedRayBackfaceThreshold = float((packed.packed1 >> 16) & 0x0000FFFF) / 65535.f;
 
     // Counts
-    output.probeNumRays = input.packed2 & 0x0000FFFF;
-    output.probeNumIrradianceInteriorTexels = (input.packed2 >> 16) & 0x000000FF;
-    output.probeNumDistanceInteriorTexels = (input.packed2 >> 24) & 0x000000FF;
+    unpacked.probeNumRays = int(packed.packed2 & 0x0000FFFFu);
+    unpacked.probeNumIrradianceInteriorTexels = int((packed.packed2 >> 16) & 0x000000FFu);
+    unpacked.probeNumDistanceInteriorTexels = int((packed.packed2 >> 24) & 0x000000FFu);
 
     // Probe Scroll Offsets
-    output.probeScrollOffsets.x = input.packed3 & 0x00007FFF;
-    if ((input.packed3 >> 15) & 0x00000001) output.probeScrollOffsets.x *= -1;
-    output.probeScrollOffsets.y = (input.packed3 >> 16) & 0x00007FFF;
-    if ((input.packed3 >> 31) & 0x00000001) output.probeScrollOffsets.y *= -1;
-    output.probeScrollOffsets.z = (input.packed4) & 0x00007FFF;
-    if ((input.packed4 >> 15) & 0x00000001) output.probeScrollOffsets.z *= -1;
+    unpacked.probeScrollOffsets.x = int(packed.packed3 & 0x00007FFFu);
+    if (((packed.packed3 >> 15) & 0x00000001) != 0) unpacked.probeScrollOffsets.x *= -1;
+    unpacked.probeScrollOffsets.y = int((packed.packed3 >> 16) & 0x00007FFFu);
+    if (((packed.packed3 >> 31) & 0x00000001) != 0) unpacked.probeScrollOffsets.y *= -1;
+    unpacked.probeScrollOffsets.z = int((packed.packed4) & 0x00007FFFu);
+    if (((packed.packed4 >> 15) & 0x00000001) != 0) unpacked.probeScrollOffsets.z *= -1;
 
     // Feature Bits
-    output.movementType = (input.packed4 >> 16) & 0x00000001;
-    output.probeRayDataFormat = (uint)((input.packed4 >> 17) & 0x00000007);
-    output.probeIrradianceFormat = (uint)((input.packed4 >> 20) & 0x00000007);
-    output.probeRelocationEnabled = (bool)((input.packed4 >> 23) & 0x00000001);
-    output.probeClassificationEnabled = (bool)((input.packed4 >> 24) & 0x00000001);
-    output.probeVariabilityEnabled = (bool)((input.packed4 >> 25) & 0x00000001);
-    output.probeScrollClear[0] = (bool)((input.packed4 >> 26) & 0x00000001);
-    output.probeScrollClear[1] = (bool)((input.packed4 >> 27) & 0x00000001);
-    output.probeScrollClear[2] = (bool)((input.packed4 >> 28) & 0x00000001);
-    output.probeScrollDirections[0] = (bool)((input.packed4 >> 29) & 0x00000001);
-    output.probeScrollDirections[1] = (bool)((input.packed4 >> 30) & 0x00000001);
-    output.probeScrollDirections[2] = (bool)((input.packed4 >> 31) & 0x00000001);
+    unpacked.movementType = (packed.packed4 >> 16) & 0x00000001;
+    unpacked.probeRayDataFormat = (packed.packed4 >> 17) & 0x00000007;
+    unpacked.probeIrradianceFormat = (packed.packed4 >> 20) & 0x00000007;
+    unpacked.probeRelocationEnabled = bool((packed.packed4 >> 23) & 0x00000001);
+    unpacked.probeClassificationEnabled = bool((packed.packed4 >> 24) & 0x00000001);
+    unpacked.probeVariabilityEnabled = bool((packed.packed4 >> 25) & 0x00000001);
+    unpacked.probeScrollClear[0] = bool((packed.packed4 >> 26) & 0x00000001);
+    unpacked.probeScrollClear[1] = bool((packed.packed4 >> 27) & 0x00000001);
+    unpacked.probeScrollClear[2] = bool((packed.packed4 >> 28) & 0x00000001);
+    unpacked.probeScrollDirections[0] = bool((packed.packed4 >> 29) & 0x00000001);
+    unpacked.probeScrollDirections[1] = bool((packed.packed4 >> 30) & 0x00000001);
+    unpacked.probeScrollDirections[2] = bool((packed.packed4 >> 31) & 0x00000001);
 
-    return output;
+    return unpacked;
 }
 
 #endif // RTXGI_DDGI_VOLUME_DESC_GPU_H

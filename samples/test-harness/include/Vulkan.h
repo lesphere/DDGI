@@ -121,6 +121,7 @@ namespace Graphics
             VkDeviceMemory instancesMemory = nullptr;       // Only valid for TLAS
             VkBuffer instancesUpload = nullptr;             // Only valid for TLAS
             VkDeviceMemory instancesUploadMemory = nullptr; // Only valid for TLAS
+            uint32_t handle = 0;
 
             void Release(VkDevice device)
             {
@@ -274,22 +275,28 @@ namespace Graphics
             VkImage                        GBufferA = nullptr;         // RGB: Albedo, A: Primary Ray Hit Flag
             VkDeviceMemory                 GBufferAMemory = nullptr;
             VkImageView                    GBufferAView = nullptr;
+            uint32_t                       GBufferAHandleStorage = 0;
 
             VkImage                        GBufferB = nullptr;         // XYZ: World Position, W: Primary Ray Hit Distance
             VkDeviceMemory                 GBufferBMemory = nullptr;
             VkImageView                    GBufferBView = nullptr;
+            uint32_t                       GBufferBHandleStorage = 0;
 
             VkImage                        GBufferC = nullptr;         // XYZ: Normal, W: unused
             VkDeviceMemory                 GBufferCMemory = nullptr;
             VkImageView                    GBufferCView = nullptr;
+            uint32_t                       GBufferCHandleStorage = 0;
 
             VkImage                        GBufferD = nullptr;         // RGB: Direct Diffuse, A: unused
             VkDeviceMemory                 GBufferDMemory = nullptr;
             VkImageView                    GBufferDView = nullptr;
+            uint32_t                       GBufferDHandleStorage = 0;
 
             // Handles to resources created elsewhere
             VkImageView                    RTAOOutputView = nullptr;  // R8 UNORM
+            //uint32_t                       RTAOOutputHandle = 0;
             VkImageView                    DDGIOutputView = nullptr;  // RGBA16 FLOAT
+            uint32_t                       DDGIOutputHandleStorage = 0;
         };
 
         struct Resources
@@ -313,6 +320,7 @@ namespace Graphics
             VkBuffer                                cameraCB = nullptr;
             VkDeviceMemory                          cameraCBMemory = nullptr;
             uint8_t*                                cameraCBPtr = nullptr;
+            uint32_t                                cameraHandle = 0;
 
             // Structured Buffers
             VkBuffer                                lightsSTB = nullptr;
@@ -320,12 +328,14 @@ namespace Graphics
             VkBuffer                                lightsSTBUploadBuffer = nullptr;
             VkDeviceMemory                          lightsSTBUploadMemory = nullptr;
             uint8_t*                                lightsSTBPtr = nullptr;
+            uint32_t                                lightHandle = 0;
 
             VkBuffer                                materialsSTB = nullptr;
             VkDeviceMemory                          materialsSTBMemory = nullptr;
             VkBuffer                                materialsSTBUploadBuffer = nullptr;
             VkDeviceMemory                          materialsSTBUploadMemory = nullptr;
             uint8_t*                                materialsSTBPtr = nullptr;
+            uint32_t                                materialHandle = 0;
 
             // ByteAddress Buffers
             VkBuffer                                meshOffsetsRB = nullptr;
@@ -333,12 +343,14 @@ namespace Graphics
             VkBuffer                                meshOffsetsRBUploadBuffer = nullptr;
             VkDeviceMemory                          meshOffsetsRBUploadMemory = nullptr;
             uint8_t*                                meshOffsetsRBPtr = nullptr;
+            uint32_t                                meshOffsetsHandle = 0;
 
             VkBuffer                                geometryDataRB = nullptr;
             VkDeviceMemory                          geometryDataRBMemory = nullptr;
             VkBuffer                                geometryDataRBUploadBuffer = nullptr;
             VkDeviceMemory                          geometryDataRBUploadMemory = nullptr;
             uint8_t*                                geometryDataRBPtr = nullptr;
+            uint32_t                                geometryDataHandle = 0;
 
             // Shared Render Targets
             RenderTargets                           rt;
@@ -348,11 +360,28 @@ namespace Graphics
             std::vector<VkDeviceMemory>             sceneVBMemory;
             std::vector<VkBuffer>                   sceneVBUploadBuffers;
             std::vector<VkDeviceMemory>             sceneVBUploadMemory;
+            std::vector<uint32_t>                   sceneVBHandles;
 
             std::vector<VkBuffer>                   sceneIBs;
             std::vector<VkDeviceMemory>             sceneIBMemory;
             std::vector<VkBuffer>                   sceneIBUploadBuffers;
             std::vector<VkDeviceMemory>             sceneIBUploadMemory;
+            std::vector<uint32_t>                   sceneIBHandles;
+
+            // Scene Geometry Indexing Buffers (buffers of scene mesh index/vertex buffer handles)
+            VkBuffer                                sceneIBH = nullptr;
+            VkDeviceMemory                          sceneIBHMemory = nullptr;
+            VkBuffer                                sceneIBHUploadBuffer = nullptr;
+            VkDeviceMemory                          sceneIBHUploadMemory = nullptr;
+            uint8_t*                                sceneIBHPtr = nullptr;
+            uint32_t                                sceneIBHHandle = 0;
+
+            VkBuffer                                sceneVBH = nullptr;
+            VkDeviceMemory                          sceneVBHMemory = nullptr;
+            VkBuffer                                sceneVBHUploadBuffer = nullptr;
+            VkDeviceMemory                          sceneVBHUploadMemory = nullptr;
+            uint8_t*                                sceneVBHPtr = nullptr;
+            uint32_t                                sceneVBHHandle = 0;
 
             // Scene Ray Tracing Acceleration Structures
             std::vector<AccelerationStructure>      blas;
@@ -364,6 +393,7 @@ namespace Graphics
             std::vector<VkImageView>                sceneTextureViews;
             std::vector<VkBuffer>                   sceneTextureUploadBuffer;
             std::vector<VkDeviceMemory>             sceneTextureUploadMemory;
+            //std::vector<uint32_t>                   sceneTextureHandles;
 
             // Additional textures
             std::vector<VkImage>                    textures;
@@ -371,6 +401,7 @@ namespace Graphics
             std::vector<VkBuffer>                   textureUploadBuffer;
             std::vector<VkDeviceMemory>             textureUploadMemory;
             std::vector<VkImageView>                textureViews;
+            //std::vector<uint32_t>                   textureHandles;
 
             // Samplers
             std::vector<VkSampler>                  samplers;
@@ -382,9 +413,11 @@ namespace Graphics
         void SetImageLayoutBarrier(VkCommandBuffer cmdBuffer, VkImage image, const ImageBarrierDesc info);
 
         bool CreateBuffer(Globals& vk, const BufferDesc& info, VkBuffer* buffer, VkDeviceMemory* memory);
+        bool CreateBufferBindless(Globals& vk, const BufferDesc& info, VkBuffer* buffer, VkDeviceMemory* memory, uint32_t & handle);
         bool CreateIndexBuffer(Globals& vk, const Scenes::Mesh& mesh, VkBuffer* ib, VkDeviceMemory* ibMemory, VkBuffer* ibUpload, VkDeviceMemory* ibUploadMemory);
         bool CreateVertexBuffer(Globals& vk, const Scenes::Mesh& mesh, VkBuffer* vb, VkDeviceMemory* vbMemory, VkBuffer* vbUpload, VkDeviceMemory* vbUploadMemory);
         bool CreateTexture(Globals& vk, const TextureDesc& info, VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView);
+        bool CreateTextureBindlessStorage(Globals& vk, const TextureDesc& info, VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView, uint32_t & handle);
 
         bool CreateShaderModule(VkDevice device, const Shaders::ShaderProgram& shader, VkShaderModule* module);
         bool CreateRasterShaderModules(VkDevice device, const Shaders::ShaderPipeline& shaders, ShaderModules& modules);

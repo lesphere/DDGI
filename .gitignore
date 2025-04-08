@@ -24,3 +24,7 @@ samples/test-harness/data/gltf/sponza/Sponza.cache
 samples/test-harness/data/gltf/tunnel/*.cache
 !samples/test-harness/data/gltf/two-rooms
 samples/test-harness/data/gltf/two-rooms/*.cache
+
+.vs/*
+out/*
+*.spvasm

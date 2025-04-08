@@ -1,53 +1,28 @@
 #version 460 core
 
-#include "samples/test-harness/shaders/include/Descriptors.glsl"
+#include "samples/test-harness/shaders/include/Descriptors_nohandle.glsl"
 
 // Setup the ray payload
 layout(location = 0) rayPayloadEXT PackedPayload packedPayload;
 
 #include "samples/test-harness/shaders/include/Common.glsl"
-#include "samples/test-harness/shaders/include/Lighting.glsl"
-#include "samples/test-harness/shaders/include/RayTracing.glsl"
+#include "samples/test-harness/shaders/include/Lighting_nohandle.glsl"
+#include "samples/test-harness/shaders/include/RayTracing_nohandle.glsl"
 
-#include "rtxgi-sdk/shaders/ddgi/include/DDGIRootConstants.glsl"
-#include "rtxgi-sdk/shaders/ddgi/Irradiance.glsl"
+#include "rtxgi-sdk/shaders/ddgi/include/DDGIRootConstants_nohandle.glsl"
+#include "rtxgi-sdk/shaders/ddgi/Irradiance_nohandle.glsl"
 
 // ---[ Ray Generation Shader ]---
 
-layout(buffer_reference) buffer uint32p {
-    uint x;
-};
-
 void main() {
-    Params params = VIWO_LOAD_PARAMS(Params);
-
-    // if (gl_LaunchIDEXT == uvec3(0u)) {
-    //     debugPrintfEXT("\nparams: %u\nglobalConst: %u\nlights: %u\nmaterials: %u\ntlas: %u\nddgiVolumes: %u\nddgiVolumeBindless: %u\nmeshOffsets: %u\ngeometryData: %u\nsceneIBH: %u\nsceneVBH: %u\n",
-    //         viwo_push_constant.params.handle,
-    //         params.globalConst.handle,
-    //         params.lights.handle,
-    //         params.materials.handle,
-    //         params.tlas.handle,
-    //         params.ddgiVolumes.handle,
-    //         params.ddgiVolumeBindless.handle,
-    //         params.meshOffsets.handle,
-    //         params.geometryData.handle,
-    //         params.sceneIBH.handle,
-    //         params.sceneVBH.handle);
-    // }
-
     // Get the DDGIVolume's index (from root/push constants)
-    uint volumeIndex = GetDDGIVolumeIndex(params.globalConst);
-
-    // Get the DDGIVolume structured buffers
-    Array_DDGIVolumeDescGPUPacked DDGIVolumes = GetDDGIVolumeConstants(params.ddgiVolumes, GetDDGIVolumeConstantsIndex());
-    Array_DDGIVolumeResourceIndices DDGIVolumeBindless = GetDDGIVolumeResourceIndices(params.ddgiVolumeBindless, GetDDGIVolumeResourceIndicesIndex());
+    uint volumeIndex = GetDDGIVolumeIndex();
 
     // Get the DDGIVolume's bindless resource indices
-    DDGIVolumeResourceIndices resourceIndices = DDGIVolumeBindless.v[volumeIndex];
+    DDGIVolumeResourceIndices resourceIndices = DDGIVolumeBindless[volumeIndex];
 
     // Get the DDGIVolume's constants from the structured buffer
-    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(DDGIVolumes.v[volumeIndex]);
+    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(DDGIVolumes[volumeIndex]);
 
     // Compute the probe index for this thread
     int rayIndex = int(gl_LaunchIDEXT.x);                    // index of the ray to trace for this probe
@@ -64,17 +39,17 @@ void main() {
     probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
 
     // Get the probe data texture array index
-    uint ProbeDataIdx = resourceIndices.probeDataSRVIndex;
+    uint ProbeDataTexIdx = resourceIndices.probeDataSRVIndex;
 
     // Get the probe's state
-    float probeState = DDGILoadProbeState(probeIndex, ProbeDataIdx, volume);
+    float probeState = DDGILoadProbeStateFromTex(probeIndex, ProbeDataTexIdx, volume);
 
     // Early out: do not shoot rays when the probe is inactive *unless* it is one of the "fixed" rays used by probe classification
     if (probeState == RTXGI_DDGI_PROBE_STATE_INACTIVE && rayIndex >= RTXGI_DDGI_NUM_FIXED_RAYS) return;
 
     // Get the probe's world position
     // Note: world positions are computed from probe coordinates *not* adjusted for infinite scrolling
-    vec3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, ProbeDataIdx);
+    vec3 probeWorldPosition = DDGIGetProbeWorldPositionFromTex(probeCoords, volume, ProbeDataTexIdx);
 
     // Get a random normalized ray direction to use for a probe ray
     vec3 probeRayDirection = DDGIGetProbeRayDirection(rayIndex, volume);
@@ -103,7 +78,7 @@ void main() {
     // NV_API not used in Vulkan
     // Trace the Probe Ray
     traceRayEXT(
-        viwo_acceleration_structures[params.tlas.handle],
+        GetAccelerationStructure(SCENE_TLAS_INDEX),
         gl_RayFlagsNoneEXT,
         0xFFu,
         0u,
@@ -120,14 +95,13 @@ void main() {
     // How to deal with the different possible formats of RayData, Image2DArray_rgba32f or Image2DArray_rg32f ?
     // unify the format to get the best performance, assume it is Image2DArray_rgba32f
     // why need to use two different formats in the original code?
-    Image2DArray_rgba32f RayData;
-    RayData.handle = resourceIndices.rayDataHandleStorage;
+    uint rayDataIndex = resourceIndices.rayDataUAVIndex;
 
     // The ray missed. Store the miss radiance, set the hit distance to a large value, and exit early.
     if (packedPayload.hitT < 0.f)
     {
         // Store the ray miss
-        DDGIStoreProbeRayMiss(RayData, outputCoords, volume, GetGlobalConst(params.globalConst, app, skyRadiance));
+        DDGIStoreProbeRayMiss(rayDataIndex, outputCoords, volume, GetGlobalConst(app, skyRadiance));
         return;
     }
 
@@ -138,7 +112,7 @@ void main() {
     if (payload.hitKind == gl_HitKindBackFacingTriangleEXT)
     {
         // Store the ray backface hit
-        DDGIStoreProbeRayBackfaceHit(RayData, outputCoords, volume, payload.hitT);
+        DDGIStoreProbeRayBackfaceHit(rayDataIndex, outputCoords, volume, payload.hitT);
         return;
     }
 
@@ -147,12 +121,14 @@ void main() {
     if((volume.probeRelocationEnabled || volume.probeClassificationEnabled) && rayIndex < RTXGI_DDGI_NUM_FIXED_RAYS)
     {
         // Store the ray front face hit distance (only)
-        DDGIStoreProbeRayFrontfaceHit(RayData, outputCoords, volume, payload.hitT);
+        DDGIStoreProbeRayFrontfaceHit(rayDataIndex, outputCoords, volume, payload.hitT);
         return;
     }
 
     // Direct Lighting and Shadowing
-    vec3 diffuse = DirectDiffuseLighting(params.globalConst, params.lights, payload, GetGlobalConst(params.globalConst, pt, rayNormalBias), GetGlobalConst(params.globalConst, pt, rayViewBias), viwo_acceleration_structures[params.tlas.handle]);
+    // Get the (dynamic) lights through global SSBO directly
+    vec3 diffuse = DirectDiffuseLighting(payload, GetGlobalConst(pt, rayNormalBias), GetGlobalConst(pt, rayViewBias), GetAccelerationStructure(SCENE_TLAS_INDEX));
+    // vec3 diffuse = vec3(0.f);
 
     // Indirect Lighting (recursive)
     vec3 irradiance = vec3(0.f);
@@ -160,9 +136,9 @@ void main() {
 
     // Get the volume resources needed for the irradiance query
     DDGIVolumeResources resources;
-    resources.probeIrradianceIdx = resourceIndices.probeIrradianceSRVIndex;
-    resources.probeDistanceIdx = resourceIndices.probeDistanceSRVIndex;
-    resources.probeDataIdx = resourceIndices.probeDataSRVIndex;
+    resources.probeIrradianceTexIdx = resourceIndices.probeIrradianceSRVIndex;
+    resources.probeDistanceTexIdx = resourceIndices.probeDistanceSRVIndex;
+    resources.probeDataTexIdx = resourceIndices.probeDataSRVIndex;
     // resources.bilinearSampler = GetBilinearWrapSampler();
 
     // Compute volume blending weight
@@ -189,5 +165,6 @@ void main() {
 
     // Store the final ray radiance and hit distance
     vec3 radiance = diffuse + ((min(payload.albedo, vec3(maxAlbedo, maxAlbedo, maxAlbedo)) / PI) * irradiance);
-    DDGIStoreProbeRayFrontfaceHit(RayData, outputCoords, volume, clamp(radiance, 0.0, 1.0), payload.hitT);
+
+    DDGIStoreProbeRayFrontfaceHit(rayDataIndex, outputCoords, volume, clamp(radiance, 0.0, 1.0), payload.hitT);
 }

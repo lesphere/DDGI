@@ -9,9 +9,6 @@
 
 #if RTXGI_PUSH_CONSTS_TYPE == RTXGI_PUSH_CONSTS_TYPE_APPLICATION
 
-    // need to add the viwo shader include dir into shaderc include path
-    #include "Draw/Framework.glsl"
-
     // Note: Vulkan only allows a single block of memory for push constants. When using an
     // application's pipeline layout in RTXGI shaders, the RTXGI shaders must understand
     // the organization of the application's push constants data block!
@@ -51,17 +48,16 @@
             uint     RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_Z_NAME;
             uvec2    ddgi_pad1;
         };
-        VIWO_BUFFER_REF(Block_GlobalConstants) {
-            RTXGI_PUSH_CONSTS_STRUCT_NAME v;
+        layout(push_constant) uniform Block_GlobalConstants {
+            RTXGI_PUSH_CONSTS_STRUCT_NAME RTXGI_PUSH_CONSTS_VARIABLE_NAME;
         };
     #endif
 
-    uint GetDDGIVolumeIndex(Buffer globalConst) { return VIWO_GET_BUFFER_REF(globalConst, Block_GlobalConstants).v.RTXGI_PUSH_CONSTS_FIELD_DDGI_VOLUME_INDEX_NAME; }
-    uvec3 GetReductionInputSize(Buffer globalConst) {
-        RTXGI_PUSH_CONSTS_STRUCT_NAME consts = VIWO_GET_BUFFER_REF(globalConst, Block_GlobalConstants).v;
-        return uvec3(consts.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_X_NAME,
-            consts.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_Y_NAME,
-            consts.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_Z_NAME);
+    uint GetDDGIVolumeIndex() { return RTXGI_PUSH_CONSTS_VARIABLE_NAME.RTXGI_PUSH_CONSTS_FIELD_DDGI_VOLUME_INDEX_NAME; }
+    uvec3 GetReductionInputSize() {
+        return uvec3(RTXGI_PUSH_CONSTS_VARIABLE_NAME.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_X_NAME,
+            RTXGI_PUSH_CONSTS_VARIABLE_NAME.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_Y_NAME,
+            RTXGI_PUSH_CONSTS_VARIABLE_NAME.RTXGI_PUSH_CONSTS_FIELD_DDGI_REDUCTION_INPUT_SIZE_Z_NAME);
     }
 
 #elif RTXGI_PUSH_CONSTS_TYPE == RTXGI_PUSH_CONSTS_TYPE_SDK

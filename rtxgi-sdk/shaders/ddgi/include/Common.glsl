@@ -1,11 +1,10 @@
 #ifndef RTXGI_DDGI_COMMON_GLSL
 #define RTXGI_DDGI_COMMON_GLSL
 
-#include "../../Common.glsl"
-#include "../../Platform.glsl"
-#include "../../../include/rtxgi/Defines.h"
-#include "../../../include/rtxgi/ddgi/DDGIRootConstants.h"
-#include "../../../include/rtxgi/ddgi/DDGIVolumeDescGPU.h"
+#include "rtxgi-sdk/shaders/Common.glsl"
+#include "rtxgi-sdk/include/rtxgi/Defines.h"
+#include "rtxgi-sdk/include/rtxgi/ddgi/DDGIRootConstants.h"
+#include "rtxgi-sdk/include/rtxgi/ddgi/DDGIVolumeDescGPU.h"
 
 //------------------------------------------------------------------------
 // Defines

@@ -15,6 +15,8 @@
 
 #include <dxcapi.h>
 
+#include "shaderc/shaderc.hpp"
+
 namespace Shaders
 {
     struct ShaderCompiler
@@ -41,13 +43,16 @@ namespace Shaders
         std::wstring               targetProfile = L"lib_6_6";
         std::wstring               entryPoint = L"";
         std::wstring               exportName = L"";
-        std::wstring               includePath = L"";
+        std::vector<std::wstring>  includePath;
         std::vector<LPCWSTR>       arguments;
         std::vector<std::wstring*> defineStrs;
         std::vector<DxcDefine>     defines;
 
         IDxcBlob*                  bytecode = nullptr;
         IDxcBlobWide*              shaderName = nullptr;
+
+        shaderc_shader_kind        kind;
+        std::vector<uint32_t>      spirv;
 
         void Release()
         {
@@ -58,6 +63,8 @@ namespace Shaders
             defineStrs.clear();
             defines.clear();
             arguments.clear();
+            includePath.clear();
+            spirv.clear();
             SAFE_RELEASE(bytecode);
             SAFE_RELEASE(shaderName);
         }
@@ -83,9 +90,9 @@ namespace Shaders
         ShaderProgram is;
         LPCWSTR exportName = L"";
 
-        bool hasCHS() const { return (chs.bytecode != nullptr); }
-        bool hasAHS() const { return (ahs.bytecode != nullptr); }
-        bool hasIS() const { return (is.bytecode != nullptr); }
+        bool hasCHS() const { return (chs.bytecode != nullptr) || !chs.spirv.empty(); }
+        bool hasAHS() const { return (ahs.bytecode != nullptr) || !ahs.spirv.empty(); }
+        bool hasIS() const { return (is.bytecode != nullptr) || !is.spirv.empty(); }
         uint32_t numStages() const { return (hasCHS() + hasAHS() + hasIS()); }
         uint32_t numSubobjects() const { return (1 + numStages()); }
 
@@ -120,5 +127,6 @@ namespace Shaders
     bool Initialize(const Configs::Config& config, ShaderCompiler& compiler);
     void AddDefine(ShaderProgram& shader, std::wstring name, std::wstring value);
     bool Compile(ShaderCompiler& compiler, ShaderProgram& shader, bool warningsAsErrors = true);
+    bool CompileGLSL(ShaderProgram& shader, bool warningsAsErrors = true);
     void Cleanup(ShaderCompiler& compiler);
 }

@@ -1,24 +1,44 @@
-/*
-* Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
-*
-* NVIDIA CORPORATION and its licensors retain all intellectual property
-* and proprietary rights in and to this software, related documentation
-* and any modifications thereto.  Any use, reproduction, disclosure or
-* distribution of this software and related documentation without an express
-* license agreement from NVIDIA CORPORATION is strictly prohibited.
-*/
-
 #ifndef TYPES_H
 #define TYPES_H
 
-#ifndef HLSL
-#include <rtxgi/Types.h>
-using namespace rtxgi;
+#ifdef GLSL
+    #define float2 vec2
+    #define float3 vec3
+    #define float4 vec4
+    #define uint2  uvec2
+    #define uint3  uvec3
+    #define uint4  uvec4
+    #define int2   ivec2
+    #define int3   ivec3
+#elif !defined(HLSL)
+    #include <rtxgi/Types.h>
+    using namespace rtxgi;
 
-namespace Graphics
-{
+    namespace Graphics
+    {
 #endif
 
+#ifdef GLSL
+    // COMPOSITE_USE_FLAGS
+    const uint COMPOSITE_FLAG_USE_NONE = 0;
+    const uint COMPOSITE_FLAG_USE_RTAO = 0x1;
+    const uint COMPOSITE_FLAG_USE_DDGI = 0x2;
+
+    // COMPOSITE_SHOW_FLAGS
+    const uint COMPOSITE_FLAG_SHOW_NONE = 0;
+    const uint COMPOSITE_FLAG_SHOW_RTAO = 0x1;
+    const uint COMPOSITE_FLAG_SHOW_DDGI_INDIRECT = 0x2;
+    const uint COMPOSITE_FLAG_SHOW_DDGI_VOLUME_PROBES = 0x4;
+    const uint COMPOSITE_FLAG_SHOW_DDGI_VOLUME_TEXTURES = 0x8;
+
+    // POSTPROCESS_USE_FLAGS
+    const uint POSTPROCESS_FLAG_USE_NONE = 0;
+    const uint POSTPROCESS_FLAG_USE_EXPOSURE = 0x1;
+    const uint POSTPROCESS_FLAG_USE_TONEMAPPING = 0x2;
+    const uint POSTPROCESS_FLAG_USE_DITHER = 0x4;
+    const uint POSTPROCESS_FLAG_USE_GAMMA = 0x8;
+
+#else
     enum COMPOSITE_USE_FLAGS
     {
         COMPOSITE_FLAG_USE_NONE = 0,
@@ -43,6 +63,7 @@ namespace Graphics
         POSTPROCESS_FLAG_USE_DITHER = 0x4,
         POSTPROCESS_FLAG_USE_GAMMA = 0x8,
     };
+#endif
 
     struct Payload
     {                                         // Byte Offset
@@ -151,7 +172,7 @@ namespace Graphics
         uint   frameNumber;    // updated every frame, used for random number generation
         float3 skyRadiance;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[4] = {};
         static uint32_t GetNum32BitValues() { return 4; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -175,7 +196,7 @@ namespace Graphics
         uint  numBounces;
         uint  samplesPerPixel;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[4];
         static uint32_t GetNum32BitValues() { return 4; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -217,7 +238,7 @@ namespace Graphics
         uint numSpotLights;         // spot lights start at 1 + numPointLights
         uint lightingPad0;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[3] = {};
         static uint32_t GetNum32BitValues() { return 3; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -251,7 +272,7 @@ namespace Graphics
         float filterDistKernel4;
         float filterDistKernel5;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[14] = {};
         static uint32_t GetNum32BitValues() { return 14; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -285,7 +306,7 @@ namespace Graphics
         uint useFlags;
         uint showFlags;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[2];
         static uint32_t GetNum32BitValues() { return 4; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -307,7 +328,7 @@ namespace Graphics
         uint  useFlags;
         float exposure;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[2];
         static uint32_t GetNum32BitValues() { return 2; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -340,7 +361,7 @@ namespace Graphics
         float probeVariabilityTextureScale;
         float probeVariabilityTextureThreshold;
 
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         uint32_t data[10];
         static uint32_t GetNum32BitValues() { return 10; }
         static uint32_t GetSizeInBytes() { return GetNum32BitValues() * 4; }
@@ -367,7 +388,7 @@ namespace Graphics
 
     struct GlobalConstants             // Added directly to the Root Signature (D3D12) or VkPipelineLayout Push Constants (Vulkan)
     {
-    #ifndef HLSL
+    #if !defined(GLSL) && !defined(HLSL)
         AppConsts         app;         //  4 32-bit values,  16 bytes
         PathTraceConsts   pt;          //  4 32-bit values,  16 bytes
         LightingConsts    lights;      //  4 32-bit values,  16 bytes
@@ -490,10 +511,10 @@ namespace Graphics
         uint   ddgi_reductionInputSizeZ;
         uint2  ddgi_pad1;
     #endif
-    #endif // HLSL
+    #endif // !defined(GLSL) && !defined(HLSL)
     };
 
-#ifndef HLSL
+#if !defined(GLSL) && !defined(HLSL)
 }
 #endif
 #endif // TYPES_H

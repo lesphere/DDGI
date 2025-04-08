@@ -1,10 +1,39 @@
+- add dependency on shaderc in CMakeLists (shaderc header and lib are in vulkan SDK)
 - rewrite HLSL shaders in GLSL
   - skip light-relative for future work
     - lights in Descriptors.glsl
     - lighting.hlsl
-  - in struct DDGIVolumeResourceIndices
+  - in struct Material
     - store the viwo's handle in the index
   - verify the load, store of Image2D(Array)_(format)
   - verify the load and sample of TextureRaw2D(Array)
   - write ProbeTraceRGS.glsl
     - write Irradiance.glsl
+    - in RayTracing.glsl
+      - in instance transform (gl_ObjectToWorld3x4EXT * vec4), is 3x4 or 4x3?
+    - what is payload in traceRayEXT, can the parameter be like packedPayload struct in HLSL
+    // If classification is enabled, pass the probe's state to hit shaders through the payload
+    - double check, for probe classification, it seems useless to pass the probe's state to hit shaders through the payload
+  - write Miss.glsl, CHS_GI.glsl, AHS_GI.glsl, IndirectCS.glsl
+    - in CHS and AHS, get camera first and then pass to ComputeUV0Differentials()
+    - implement GetMaterial()
+    - in CHS and AHS, arrange data in struct GPUScene { AccelerationStructure acc; Buffer vertex_layouts; Buffer instances; Buffer materials; };
+  - when applying instance transforms, is 3x4(gl_ObjectToWorld3x4EXT) or 4x3(gl_ObjectToWorldEXT) ?
+- share data between DDGI rtPipeline (with GLSL) and other pipelines (with HLSL) which have different descriptor sets
+  - bind the same data to different descriptors
+    - add RenderCore project into RTXGI resolution to use viwo's resource management
+  - in Graphics::Vulkan::DDGI::Execute(), modify pushconstants
+    - before put resources' handle into pushconstants, need map resources to handles and store them first
+      - add viwo's resources constructor to construct from exist DDGI's resources and register bindless ( for example, VulkanAccelerationStructure )
+      - can modify directly in DDGI's resources create methods, like CreateTLAS(), then we can register bindless right after resources creation
+      - and we need a variable to store the bindless handle
+      - why not we change the whole resource management from DDGI's to viwo's (we also need do this after)
+    - check if elsewhere also need
+    - refer to descriptor_ref.glsl implement GetRWTex2D() and GetRWTex2DArray() in Descriptors.glsl, and modify where use them in shaders
+- implement Graphics::Vulkan::CreateSceneGeometryIndexingBuffers()
+- volk use caution:
+  - in RenderCore, init volk and export native vulkan functions
+  - in TestHarness-VK, import the nativa vulkan functions that are loaded and exported by RenderCore
+    - do not add vulkan-1.lib, or the functions like vkCreateInstance can not be exported well
+      - in fact, vulkan-1.lib can not be in front of RenderCore.lib in dependencies, but can be after, and this is equivalent to no vulkan-1.lib when I check the imports with dumpin ...
+      

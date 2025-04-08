@@ -140,6 +140,14 @@ namespace rtxgi
             VkImageView                 probeVariabilityView = nullptr;                     // Probe variability texture array view
             VkImageView                 probeVariabilityAverageView = nullptr;              // Probe variability average texture view
 
+            // Texture Handles
+            uint32_t                    probeRayDataHandleStorage = 0;                       // Probe ray data texture array handle for storage descriptor
+            uint32_t                    probeIrradianceHandleStorage = 0;                    // Probe irradiance texture array handle for storage descriptor
+            uint32_t                    probeDistanceHandleStorage = 0;                      // Probe distance texture array handle for storage descriptor
+            uint32_t                    probeDataHandleStorage = 0;                          // Probe data texture array handle for storage descriptor
+            uint32_t                    probeVariabilityHandleStorage = 0;                   // Probe variability texture array handle for storage descriptor
+            uint32_t                    probeVariabilityAverageHandleStorage = 0;            // Probe variability average texture handle for storage descriptor
+
             // Shader Modules
             VkShaderModule              probeBlendingIrradianceModule = nullptr;             // Probe blending (irradiance) shader module
             VkShaderModule              probeBlendingDistanceModule = nullptr;               // Probe blending (distance) shader module
@@ -315,6 +323,14 @@ namespace rtxgi
             VkImageView GetProbeVariabilityView() const { return m_probeVariabilityView; }
             VkImageView GetProbeVariabilityAverageView() const { return m_probeVariabilityAverageView; }
 
+            // Texture Array Handles
+            uint32_t GetProbeRayDataHandleStorage() const { return m_probeRayDataHandleStorage; }
+            uint32_t GetProbeIrradianceHandleStorage() const { return m_probeIrradianceHandleStorage; }
+            uint32_t GetProbeDistanceHandleStorage() const { return m_probeDistanceHandleStorage; }
+            uint32_t GetProbeDataHandleStorage() const { return m_probeDataHandleStorage; }
+            uint32_t GetProbeVariabilityHandleStorage() const { return m_probeVariabilityHandleStorage; }
+            uint32_t GetProbeVariabilityAverageHandleStorage() const { return m_probeVariabilityAverageHandleStorage; }
+
             // Shader Modules
             VkShaderModule GetProbeBlendingIrradianceModule() const { return m_probeBlendingIrradianceModule; }
             VkShaderModule GetProbeBlendingDistanceModule() const { return m_probeBlendingDistanceModule; }
@@ -411,6 +427,14 @@ namespace rtxgi
             VkImageView                     m_probeDataView = nullptr;                          // Probe data view
             VkImageView                     m_probeVariabilityView = nullptr;                   // Probe variability view
             VkImageView                     m_probeVariabilityAverageView = nullptr;            // Probe variability average view
+
+            // Texture Array Handles
+            uint32_t                        m_probeRayDataHandleStorage = 0;                    // Probe ray data handle for storage desciptor
+            uint32_t                        m_probeIrradianceHandleStorage = 0;                 // Probe irradiance handle for storage desciptor
+            uint32_t                        m_probeDistanceHandleStorage = 0;                   // Probe distance handle for storage desciptor
+            uint32_t                        m_probeDataHandleStorage = 0;                       // Probe data handle for storage desciptor
+            uint32_t                        m_probeVariabilityHandleStorage = 0;                // Probe variability handle for storage desciptor
+            uint32_t                        m_probeVariabilityAverageHandleStorage = 0;         // Probe variability average handle for storage desciptor
 
             // Pipeline Layout
             VkPipelineLayout                m_pipelineLayout = nullptr;                         // Pipeline layout, used for all update compute shaders

@@ -1,11 +1,15 @@
 #ifndef DESCRIPTORS_GLSL
 #define DESCRIPTORS_GLSL
 
-// need to reallocate the file to the correct path
-#include "Framework.glsl"
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_debug_printf : enable
 
-#include "../../../../rtxgi-sdk/include/rtxgi/ddgi/DDGIVolumeDescGPU.glsl"
-#include "../../include/graphics/Types.glsl"
+// need to add the viwo shader include dir into shaderc include path
+#include "Draw/Framework.glsl"
+
+#include "rtxgi-sdk/include/rtxgi/ddgi/DDGIVolumeDescGPU.h"
+#include "samples/test-harness/include/graphics/Types.h"
 
 #define RTXGI_BINDLESS_TYPE_RESOURCE_ARRAYS 0
 #define RTXGI_BINDLESS_TYPE_DESCRIPTOR_HEAP 1
@@ -14,86 +18,26 @@
 #error Required define RTXGI_BINDLESS_TYPE is not defined!
 #endif
 
-struct TLASInstance
-{
-#pragma pack_matrix(row_major)
-    mat3x4 transform;
-#pragma pack_matrix(column_major)
-    uint     instanceID24_Mask8;
-    uint     instanceContributionToHitGroupIndex24_Flags8;
-    uvec2    blasAddress;
+// struct TLASInstance
+// {
+// #pragma pack_matrix(row_major)
+//     mat3x4 transform;
+// #pragma pack_matrix(column_major)
+//     uint     instanceID24_Mask8;
+//     uint     instanceContributionToHitGroupIndex24_Flags8;
+//     uvec2    blasAddress;
+// };
+
+struct RayDesc {
+    vec3 origin;
+    float tmin;
+    vec3 direction;
+    float tmax;
 };
 
 #define DEFINE_ARRAY_REF(type) VIWO_BUFFER_REF(Array_##type) { type v[]; }
 
 // Global Root / Push Constants ------------------------------------------------------------------------------------
-
-/* Params definition example
-VIWO_BUFFER_REF(Params) {
-    Buffer globalConst;
-    Buffer camera;
-
-    // TODO: use viwo's lights and materials
-    // Buffer lights;
-    // Buffer materials;
-
-    // StructuredBuffer<TLASInstance> TLASInstances seems not used (check twice when implementing)
-    // Buffer tlasInstances;
-
-    Buffer ddgiVolumes;
-    Buffer ddgiVolumeBindless;
-
-    // TODO: manage DDGI Volume TLAS in viwo
-    Buffer rwTLASInstances;
-
-    // for RWTexture2D in HLSL
-    // Image2D_rgba8 GBufferA;
-    // Image2D_rgba32f GBufferB;
-    // use ivec2 ImageSize(Image2D_rgba8 img), void ImageStore(Image2D_rgba8 img, ivec2 p, vec4 data) and vec4 ImageLoad(Image2D_rgba8 img, ivec2 p);
-
-    // for RWTexture2DArray in HLSL, see format in GetDDGIVolumeTextureFormat() and in config with ddgi.volume.0.textures.***.format
-    // Image2DArray_rgba32f ***;
-
-    // for scene TLAS, get handle, maybe refer to below
-    // struct GPUScene {
-    //     AccelerationStructure acc;
-    //     Buffer vertex_layouts;
-    //     Buffer instances;
-    //     Buffer materials;
-    // };
-
-    // usage of texture2D in GLSL:
-    // uniform sampler mySampler;
-    // uniform texture2D myTexture;
-    // sampler2D combined = sampler2D(myTexture, mySampler);
-    // vec4 color = texture(combined, texCoord);
-
-    // for Texture2D in HLSL
-    // TextureRaw2D sceneTexture;
-    // in Framework.glsl, define:
-    // #define VIWO_ACCESS_BINDLESS_TEXTURERAW(textureType, textureFormat, handle) viwo_##textureType##_##textureFormat[nonuniformEXT(handle)]
-    // in Framework.gen.glsl, define:
-    // layout(set = 5, binding = 0) uniform texture2D viwo_texture2D[];
-    // struct TextureRaw2D { uint handle; };
-    // vec4 Texture(TextureRaw2D tex, sampler s, vec2 p) { return sampler2D(VIWO_ACCESS_BINDLESS_TEXTURERAW(texture2D, tex.handle), s), p); }
-    // vec4 TexelFetch(TextureRaw2D tex, ivec2 p, int lod) { return texelFetch(VIWO_ACCESS_BINDLESS_TEXTURERAW(texture2D, tex.handle), p, lod); }
-
-    // for Texture2DArray in HLSL
-    // TextureRaw2DArray ddgiTexture;
-    // in Framework.gen.glsl, define:
-    // layout(set = 5, binding = 0) uniform texture2DArray viwo_texture2DArray[];
-    // struct TextureRaw2DArray { uint handle; };
-    // vec4 Texture(sampler s, TextureRaw2DArray tex, vec3 p) { return sampler2DArray(VIWO_ACCESS_BINDLESS_TEXTURERAW(texture2DArray, tex.handle), s), p); }
-
-    // for ByteAddressBuffer in HLSL
-    // Buffer meshOffsets;
-    // Buffer geometryData;
-    // VIWO_BUFFER_REF(Array_GeometryBuffer) {
-    //    Buffer v[];
-    // }
-    // Array_GeometryBuffer geometryBuffers;
-};
-*/
 
 // VK_PUSH_CONST ConstantBuffer<GlobalConstants> GlobalConst : register(b0, space0);
 VIWO_BUFFER_REF(Block_GlobalConstants) {
@@ -102,16 +46,19 @@ VIWO_BUFFER_REF(Block_GlobalConstants) {
 // use VIWO_LOAD_PARAMS(Params).globalConst to get the handle of the globalConst buffer
 #define GetGlobalConst(globalConst, x, y) (VIWO_GET_BUFFER_REF(globalConst, Block_GlobalConstants).v.x##_##y)
 
+/* for PT
 uint GetPTNumBounces() { return (GetGlobalConst(pt, numBounces) &  0x7FFFFFFF); }
 uint GetPTProgressive() { return (GetGlobalConst(pt, numBounces) & 0x80000000); }
 
 uint GetPTSamplesPerPixel() { return (GetGlobalConst(pt, samplesPerPixel) & 0x3FFFFFFF); }
 uint GetPTAntialiasing() { return (GetGlobalConst(pt, samplesPerPixel) & 0x80000000); }
 uint GetPTShaderExecutionReordering() { return GetGlobalConst(pt, samplesPerPixel) & 0x40000000; }
+*/
 
-uint HasDirectionalLight() { return GetGlobalConst(lighting, hasDirectionalLight); }
-uint GetNumPointLights() { return GetGlobalConst(lighting, numPointLights); }
-uint GetNumSpotLights() { return GetGlobalConst(lighting, numSpotLights); }
+// TODO: for lights
+uint HasDirectionalLight(Buffer globalConst) { return GetGlobalConst(globalConst, lighting, hasDirectionalLight); }
+uint GetNumPointLights(Buffer globalConst) { return GetGlobalConst(globalConst, lighting, numPointLights); }
+uint GetNumSpotLights(Buffer globalConst) { return GetGlobalConst(globalConst, lighting, numSpotLights); }
 
 //----------------------------------------------------------------------------------------------------------------
 // Root Signature Descriptors and Mappings
@@ -133,15 +80,26 @@ Camera GetCamera(Buffer camera) { return VIWO_GET_BUFFER_REF(camera, Block_Camer
 
 // Bindless Resources ---------------------------------------------------------------------------------------
 
+layout(buffer_reference, scalar) buffer Array_Lights {
+    Light v[];
+};
+Light GetLight(Buffer lights, uint index) { return VIWO_GET_BUFFER_REF(lights, Array_Lights).v[index]; }
+
+DEFINE_ARRAY_REF(Material);
+Material GetMaterial(Buffer materials, GeometryData geometry) { return VIWO_GET_BUFFER_REF(materials, Array_Material).v[geometry.materialIndex]; }
+
 DEFINE_ARRAY_REF(DDGIVolumeDescGPUPacked);
-Array_DDGIVolumeDescGPUPacked GetDDGIVolumeConstants(Buffer ddgiVolumes, uint index) { return VIWO_GET_BUFFER_REF(ddgiVolumes, Block_DDGIVolumeDescGPUPacked); }
+Array_DDGIVolumeDescGPUPacked GetDDGIVolumeConstants(Buffer ddgiVolumes, uint index) { return VIWO_GET_BUFFER_REF(ddgiVolumes, Array_DDGIVolumeDescGPUPacked); }
 DEFINE_ARRAY_REF(DDGIVolumeResourceIndices);
-Array_DDGIVolumeResourceIndices GetDDGIVolumeResourceIndices(Buffer ddgiVolumeBindless, uint index) { return VIWO_GET_BUFFER_REF(ddgiVolumeBindless, Block_DDGIVolumeResourceIndices); }
+Array_DDGIVolumeResourceIndices GetDDGIVolumeResourceIndices(Buffer ddgiVolumeBindless, uint index) { return VIWO_GET_BUFFER_REF(ddgiVolumeBindless, Array_DDGIVolumeResourceIndices); }
 
-DEFINE_ARRAY_REF(TLASInstance v);
-Array_TLASInstance GetDDGIProbeVisTLASInstances(Buffer rwTLASInstances) { return VIWO_GET_BUFFER_REF(rwTLASInstances, Block_TLASInstance); }
+// DEFINE_ARRAY_REF(TLASInstance);
+// Array_TLASInstance GetDDGIProbeVisTLASInstances(Buffer rwTLASInstances) { return VIWO_GET_BUFFER_REF(rwTLASInstances, Array_TLASInstance); }
 
-VIWO_BUFFER_REF(Block_ByteAddressBuffer) {
+layout(set = 5, binding = 0) uniform texture2D Tex2D[];
+layout(set = 5, binding = 1) uniform texture2DArray Tex2DArray[];
+
+VIWO_BUFFER_REF(ByteAddressBuffer) {
     uint data[];
 };
 
@@ -170,20 +128,23 @@ VIWO_BUFFER_REF(Block_ByteAddressBuffer) {
 
 // Sampler Accessor Functions ------------------------------------------------------------------------------
 
-sampler GetBilinearWrapSampler() { return Samplers[0]; }
-sampler GetPointClampSampler() { return Samplers[1]; }
-sampler GetAnisoWrapSampler() { return Samplers[2]; }
+#define BilinearWrapSampler Samplers[0]
+#define PointClampSampler Samplers[1]
+#define AnisoWrapSampler Samplers[2]
 
 // Resource Accessor Functions ------------------------------------------------------------------------------
 
 uint ReadUInt(Buffer ByteAddrBuffer, uint byteOffset) {
-    return VIWO_GET_BUFFER_REF(ByteAddrBuffer, Block_ByteAddressBuffer).data[byteOffset / 4]; // Divide by 4 to get 32-bit aligned offset
+    return VIWO_GET_BUFFER_REF(ByteAddrBuffer, ByteAddressBuffer).data[byteOffset / 4]; // Divide by 4 to get 32-bit aligned offset
 }
 uvec2 ReadUInt2(Buffer ByteAddrBuffer, uint byteOffset) {
     return uvec2(ReadUInt(ByteAddrBuffer, byteOffset), ReadUInt(ByteAddrBuffer, byteOffset + 4));
 }
 uvec3 ReadUInt3(Buffer ByteAddrBuffer, uint byteOffset) {
     return uvec3(ReadUInt(ByteAddrBuffer, byteOffset), ReadUInt(ByteAddrBuffer, byteOffset + 4), ReadUInt(ByteAddrBuffer, byteOffset + 8));
+}
+uvec4 ReadUInt4(Buffer ByteAddrBuffer, uint byteOffset) {
+    return uvec4(ReadUInt(ByteAddrBuffer, byteOffset), ReadUInt(ByteAddrBuffer, byteOffset + 4), ReadUInt(ByteAddrBuffer, byteOffset + 8), ReadUInt(ByteAddrBuffer, byteOffset + 12));
 }
 
 void GetGeometryData(Buffer meshOffsets, Buffer geometryData, uint meshIndex, uint geometryIndex, out GeometryData geometry) {
@@ -195,8 +156,49 @@ void GetGeometryData(Buffer meshOffsets, Buffer geometryData, uint meshIndex, ui
     geometry.vertexByteAddress = ReadUInt(geometryData, address + 8);
 }
 
-Buffer GetIndexBuffer(Array_GeometryBuffer geometryBuffers, uint meshIndex) { return geometryBuffers.v[meshIndex * 2]; }
-Buffer GetVertexBuffer(Array_GeometryBuffer geometryBuffers, uint meshIndex) { return geometryBuffers.v[meshIndex * 2 + 1]; }
+DEFINE_ARRAY_REF(Buffer);
+Buffer GetIndexBuffer(Buffer sceneIBH, uint meshIndex) { return VIWO_GET_BUFFER_REF(sceneIBH, Array_Buffer).v[meshIndex]; }
+Buffer GetVertexBuffer(Buffer sceneVBH, uint meshIndex) { return VIWO_GET_BUFFER_REF(sceneVBH, Array_Buffer).v[meshIndex]; }
+
+// Bindless Resource Array Accessors ------------------------------------------------------------------------
+
+// #define GetRWTex2D(index) RWTex2D[index]
+#define GetTex2D(index) Tex2D[index]
+
+// #define GetRWTex2DArray(index) RWTex2DArray[index]
+#define GetTex2DArray(index) Tex2DArray[index]
+
+// Push Constants Params ------------------------------------------------------------------------------------
+
+// struct GPUScene {
+//     AccelerationStructure acc;
+//     Buffer vertex_layouts;
+//     Buffer instances;
+//     Buffer materials;
+// };
+
+VIWO_BUFFER_REF(Params) {
+    Buffer globalConst;
+
+    // TODO: use viwo's lights and materials
+    Buffer lights;
+    Buffer materials;
+
+    AccelerationStructure tlas;
+
+    // Buffer camera; // TODO
+
+    // StructuredBuffer<TLASInstance> TLASInstances seems not used (check twice when implementing)
+    // Buffer tlasInstances;
+
+    Buffer ddgiVolumes;
+    Buffer ddgiVolumeBindless;
+
+    Buffer meshOffsets;
+    Buffer geometryData;
+    Buffer sceneIBH;
+    Buffer sceneVBH;
+};
 
 #elif RTXGI_BINDLESS_TYPE == RTXGI_BINDLESS_TYPE_DESCRIPTOR_HEAP
 

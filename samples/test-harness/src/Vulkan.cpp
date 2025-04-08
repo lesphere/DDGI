@@ -280,11 +280,19 @@ namespace Graphics
             // Create the validation layer's message callback function
             VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo = {};
             debugUtilsMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-            debugUtilsMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+            debugUtilsMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
             debugUtilsMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
             debugUtilsMessengerCreateInfo.pfnUserCallback = DebugUtilsMessengerCallback;
 
-            instanceCreateInfo.pNext = &debugUtilsMessengerCreateInfo;
+            // Shader printf is a feature of the validation layers that needs to be enabled
+            std::vector<VkValidationFeatureEnableEXT>  validation_feature_enables = { VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT };
+
+            VkValidationFeaturesEXT validation_features{ VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+            validation_features.enabledValidationFeatureCount = 1;
+            validation_features.pEnabledValidationFeatures = validation_feature_enables.data();
+            validation_features.pNext = &debugUtilsMessengerCreateInfo;
+
+            instanceCreateInfo.pNext = &validation_features;
         #endif
 
             instanceCreateInfo.ppEnabledLayerNames = layerNames.data();
@@ -306,7 +314,8 @@ namespace Graphics
             if (vk.instance == nullptr) return false;
 
             // Load the instance extensions
-            LoadInstanceExtensions(vk.instance);
+            //LoadInstanceExtensions(vk.instance);
+            VPE::VulkanContext::LoadInstanceVolk(vk.instance);
 
         #if _DEBUG
             VKCHECK(vkCreateDebugUtilsMessengerEXT(vk.instance, &debugUtilsMessengerCreateInfo, nullptr, &vk.debugUtilsMessenger));
@@ -342,6 +351,7 @@ namespace Graphics
             std::vector<const char*> deviceExtensions =
             {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_EXT_ROBUSTNESS_2_EXTENSION_NAME,
                 VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
                 VK_KHR_RAY_QUERY_EXTENSION_NAME,
                 VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
@@ -350,7 +360,9 @@ namespace Graphics
                 VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
                 VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
                 VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
-                VK_KHR_MAINTENANCE3_EXTENSION_NAME
+                VK_KHR_MAINTENANCE3_EXTENSION_NAME,
+                VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, // for viwo's VkGLInterop
+                VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // for debug printf
             };
 
             // Find a physical device that supports graphics queues
@@ -389,14 +401,9 @@ namespace Graphics
             robusness2Features.pNext = nullptr;
             robusness2Features.nullDescriptor = VK_TRUE;    // allow null descriptors in descriptor sets
 
-            VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAdressFeatures = {};
-            bufferDeviceAdressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-            bufferDeviceAdressFeatures.pNext = &robusness2Features;
-            bufferDeviceAdressFeatures.bufferDeviceAddress = VK_TRUE;
-
             VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures = {};
             rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-            rayQueryFeatures.pNext = &bufferDeviceAdressFeatures;
+            rayQueryFeatures.pNext = &robusness2Features;
             rayQueryFeatures.rayQuery = VK_TRUE;
 
             VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {};
@@ -406,7 +413,7 @@ namespace Graphics
             accelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
             accelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE;
             accelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE;
-            accelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_FALSE;
+            accelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
 
             VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingPipelineFeatures = {};
             rayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
@@ -417,13 +424,22 @@ namespace Graphics
             rayTracingPipelineFeatures.rayTracingPipelineTraceRaysIndirect = VK_TRUE;
             rayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
 
-            VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {};
-            descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-            descriptorIndexingFeatures.pNext = &rayTracingPipelineFeatures;
-            descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-            descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+            VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+            vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+            vulkan12Features.pNext = &rayTracingPipelineFeatures;
+            vulkan12Features.descriptorIndexing = VK_TRUE;
+            vulkan12Features.bufferDeviceAddress = VK_TRUE;
+            vulkan12Features.runtimeDescriptorArray = VK_TRUE;
+            vulkan12Features.descriptorBindingPartiallyBound = VK_TRUE;
+            vulkan12Features.descriptorBindingVariableDescriptorCount = VK_TRUE;
+            vulkan12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+            vulkan12Features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+            vulkan12Features.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+            vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+            vulkan12Features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+            vulkan12Features.scalarBlockLayout = VK_TRUE;
 
-            deviceCreateInfo.pNext = &descriptorIndexingFeatures;
+            deviceCreateInfo.pNext = &vulkan12Features;
 
             // Get the features supported by the physical device
             vkGetPhysicalDeviceFeatures(vk.physicalDevice, &vk.deviceFeatures);
@@ -434,7 +450,8 @@ namespace Graphics
             if (vk.device == nullptr) return false;
 
             // Load the device extensions
-            LoadDeviceExtensions(vk.device);
+            //LoadDeviceExtensions(vk.device);
+            VPE::VulkanContext::LoadDeviceVolk(vk.device);
 
             // Create the queue
             vkGetDeviceQueue(vk.device, vk.queueFamilyIndex, 0, &vk.queue);
@@ -524,6 +541,9 @@ namespace Graphics
             swapchainSize = surfaceCapabilities.currentExtent;
             if (swapchainSize.width != vk.width) return false;
             //if (swapchainSize.height != vk.height) return false;
+            if (swapchainSize.height != vk.height) {
+                vk.height = swapchainSize.height;
+            }
             if (surfaceCapabilities.minImageCount > MAX_FRAMES_IN_FLIGHT) return false;
 
             // Note: maxImageCount of 0 means unlimited number of images
@@ -786,6 +806,7 @@ namespace Graphics
             // Describe the descriptor pool
             VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
             descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
             descriptorPoolCreateInfo.poolSizeCount = _countof(descriptorPoolSizes);
             descriptorPoolCreateInfo.pPoolSizes = descriptorPoolSizes;
             descriptorPoolCreateInfo.maxSets = maxDescriptorSets;
@@ -956,6 +977,43 @@ namespace Graphics
         }
 
         /**
+         * Create the index buffer and device memory for a mesh, and register bindless.
+         * Copy the index data to the upload buffer and schedule a copy to the device buffer.
+         */
+        bool CreateIndexBufferBindless(Globals& vk, const Scenes::Mesh& mesh, VkBuffer* ib, VkDeviceMemory* ibMemory, VkBuffer* ibUpload, VkDeviceMemory* ibUploadMemory, uint32_t& ibHandle) {
+            // Create the index buffer upload resource
+            uint32_t sizeInBytes = mesh.numIndices * sizeof(uint32_t);
+            BufferDesc desc = { sizeInBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
+            if (!CreateBuffer(vk, desc, ibUpload, ibUploadMemory)) return false;
+
+            // Create the index buffer device resource
+            desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+            desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            if (!CreateBufferBindless(vk, desc, ib, ibMemory, ibHandle)) return false;
+
+            // Copy the index data of each mesh primitive to the upload buffer
+            uint8_t* pData = nullptr;
+            VKCHECK(vkMapMemory(vk.device, *ibUploadMemory, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&pData)));
+
+            for (uint32_t primitiveIndex = 0; primitiveIndex < static_cast<uint32_t>(mesh.primitives.size()); primitiveIndex++)
+            {
+                // Get the mesh primitive and copy its indices to the upload buffer
+                const Scenes::MeshPrimitive& primitive = mesh.primitives[primitiveIndex];
+
+                uint32_t size = static_cast<uint32_t>(primitive.indices.size()) * sizeof(uint32_t);
+                memcpy(pData + primitive.indexByteOffset, primitive.indices.data(), size);
+            }
+            vkUnmapMemory(vk.device, *ibUploadMemory);
+
+            // Schedule a copy of the upload buffer to the device buffer
+            VkBufferCopy bufferCopy = {};
+            bufferCopy.size = sizeInBytes;
+            vkCmdCopyBuffer(vk.cmdBuffer[vk.frameIndex], *ibUpload, *ib, 1, &bufferCopy);
+
+            return true;
+        }
+
+        /**
          * Create the vertex buffer and device memory for a mesh primitive.
          * Copy the vertex data to the upload buffer and schedule a copy to the device buffer.
          */
@@ -971,6 +1029,44 @@ namespace Graphics
             desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
             desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             if (!CreateBuffer(vk, desc, vb, vbMemory)) return false;
+
+            // Copy the vertex data of each mesh primitive to the upload
+            uint8_t* pData = nullptr;
+            VKCHECK(vkMapMemory(vk.device, *vbUploadMemory, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&pData)));
+
+            for (uint32_t primitiveIndex = 0; primitiveIndex < static_cast<uint32_t>(mesh.primitives.size()); primitiveIndex++)
+            {
+                // Get the mesh primitive and copy its vertices to the upload buffer
+                const Scenes::MeshPrimitive& primitive = mesh.primitives[primitiveIndex];
+
+                uint32_t size = static_cast<uint32_t>(primitive.vertices.size()) * stride;
+                memcpy(pData + primitive.vertexByteOffset, primitive.vertices.data(), size);
+            }
+            vkUnmapMemory(vk.device, *vbUploadMemory);
+
+            // Schedule a copy of the upload buffer to the device buffer
+            VkBufferCopy bufferCopy = {};
+            bufferCopy.size = sizeInBytes;
+            vkCmdCopyBuffer(vk.cmdBuffer[vk.frameIndex], *vbUpload, *vb, 1, &bufferCopy);
+
+            return true;
+        }
+
+        /**
+         * Create the vertex buffer and device memory for a mesh primitive, and register bindless.
+         * Copy the vertex data to the upload buffer and schedule a copy to the device buffer.
+         */
+        bool CreateVertexBufferBindless(Globals& vk, const Scenes::Mesh& mesh, VkBuffer* vb, VkDeviceMemory* vbMemory, VkBuffer* vbUpload, VkDeviceMemory* vbUploadMemory, uint32_t& vbHandle) {
+            // Create the vertex buffer upload resource
+            uint32_t stride = sizeof(Vertex);
+            uint32_t sizeInBytes = mesh.numVertices * stride;
+            BufferDesc desc = { sizeInBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
+            if (!CreateBuffer(vk, desc, vbUpload, vbUploadMemory)) return false;
+
+            // Create the vertex buffer device resource
+            desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+            desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            if (!CreateBufferBindless(vk, desc, vb, vbMemory, vbHandle)) return false;
 
             // Copy the vertex data of each mesh primitive to the upload
             uint8_t* pData = nullptr;
@@ -1130,6 +1226,9 @@ namespace Graphics
             // Create the TLAS
             VKCHECK(vkCreateAccelerationStructureKHR(vk.device, &asCreateInfo, nullptr, &as.asKHR));
 
+            // Register bindless
+            as.handle = VPE::VulkanContext::Get()->RegisterBindlessAccelerationStructure(as.asKHR);
+
             // Set the location of the final acceleration structure
             asInputs.dstAccelerationStructure = as.asKHR;
 
@@ -1159,6 +1258,7 @@ namespace Graphics
             std::vector<VkImageView>* textureViews;
             std::vector<VkBuffer>* uploadBuffers;
             std::vector<VkDeviceMemory>* uploadBufferMemory;
+            //std::vector<uint32_t>* textureHandles;
             if (texture.type == Textures::ETextureType::SCENE)
             {
                 textures = &resources.sceneTextures;
@@ -1166,6 +1266,7 @@ namespace Graphics
                 textureViews = &resources.sceneTextureViews;
                 uploadBuffers = &resources.sceneTextureUploadBuffer;
                 uploadBufferMemory = &resources.sceneTextureUploadMemory;
+                //textureHandles = &resources.sceneTextureHandles;
             }
             else if (texture.type == Textures::ETextureType::ENGINE)
             {
@@ -1174,6 +1275,7 @@ namespace Graphics
                 textureViews = &resources.textureViews;
                 uploadBuffers = &resources.textureUploadBuffer;
                 uploadBufferMemory = &resources.textureUploadMemory;
+                //textureHandles = &resources.textureHandles;
             }
 
             VkImage& resource = textures->emplace_back();
@@ -1182,6 +1284,8 @@ namespace Graphics
 
             VkBuffer& upload = uploadBuffers->emplace_back();
             VkDeviceMemory& uploadMemory = uploadBufferMemory->emplace_back();
+
+            //uint32_t& handle = textureHandles->emplace_back();
 
             // Create the device texture resource, memory, and view
             {
@@ -1533,7 +1637,7 @@ namespace Graphics
         {
             // Create the GBufferA (R8G8B8A8_UNORM) texture resource
             TextureDesc desc = { static_cast<uint32_t>(vk.width), static_cast<uint32_t>(vk.height), 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
-            if(!CreateTexture(vk, desc, &resources.rt.GBufferA, &resources.rt.GBufferAMemory, &resources.rt.GBufferAView)) return false;
+            if(!CreateTextureBindlessStorage(vk, desc, &resources.rt.GBufferA, &resources.rt.GBufferAMemory, &resources.rt.GBufferAView, resources.rt.GBufferAHandleStorage)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferA), "GBufferA", VK_OBJECT_TYPE_IMAGE);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferAMemory), "GBufferA Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1542,7 +1646,7 @@ namespace Graphics
 
             // Create the GBufferB (R32G32B32A32_FLOAT) texture resource
             desc.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            if (!CreateTexture(vk, desc, &resources.rt.GBufferB, &resources.rt.GBufferBMemory, &resources.rt.GBufferBView)) return false;
+            if (!CreateTextureBindlessStorage(vk, desc, &resources.rt.GBufferB, &resources.rt.GBufferBMemory, &resources.rt.GBufferBView, resources.rt.GBufferBHandleStorage)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferB), "GBufferB", VK_OBJECT_TYPE_IMAGE);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferBMemory), "GBufferB Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1550,7 +1654,7 @@ namespace Graphics
         #endif
 
             // Create the GBufferC (R32G32B32A32_FLOAT) texture resource
-            if (!CreateTexture(vk, desc, &resources.rt.GBufferC, &resources.rt.GBufferCMemory, &resources.rt.GBufferCView)) return false;
+            if (!CreateTextureBindlessStorage(vk, desc, &resources.rt.GBufferC, &resources.rt.GBufferCMemory, &resources.rt.GBufferCView, resources.rt.GBufferCHandleStorage)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferC), "GBufferC", VK_OBJECT_TYPE_IMAGE);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferCMemory), "GBufferC Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1558,7 +1662,7 @@ namespace Graphics
         #endif
 
             // Create the GBufferD (R32G32B32A32_FLOAT) texture resource
-            if (!CreateTexture(vk, desc, &resources.rt.GBufferD, &resources.rt.GBufferDMemory, &resources.rt.GBufferDView)) return false;
+            if (!CreateTextureBindlessStorage(vk, desc, &resources.rt.GBufferD, &resources.rt.GBufferDMemory, &resources.rt.GBufferDView, resources.rt.GBufferDHandleStorage)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferD), "GBufferD", VK_OBJECT_TYPE_IMAGE);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.rt.GBufferDMemory), "GBufferD Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1772,8 +1876,8 @@ namespace Graphics
         {
             // Create the camera buffer resource and allocate device memory
             uint32_t size = ALIGN(256, Scenes::Camera::GetGPUDataSize());
-            BufferDesc desc = { size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
-            if (!CreateBuffer(vk, desc, &resources.cameraCB, &resources.cameraCBMemory)) return false;
+            BufferDesc desc = { size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
+            if (!CreateBufferBindless(vk, desc, &resources.cameraCB, &resources.cameraCBMemory, resources.cameraHandle)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.cameraCB), "Camera Constant Buffer", VK_OBJECT_TYPE_BUFFER);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.cameraCBMemory), "Camera Constant Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1800,7 +1904,7 @@ namespace Graphics
             // Create the lights device buffer resource and allocate device memory
             desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            if (!CreateBuffer(vk, desc, &resources.lightsSTB, &resources.lightsSTBMemory)) return false;
+            if (!CreateBufferBindless(vk, desc, &resources.lightsSTB, &resources.lightsSTBMemory, resources.lightHandle)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.lightsSTB), "Lights Structured Buffer", VK_OBJECT_TYPE_BUFFER);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.lightsSTBMemory), "Lights Structured Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1837,7 +1941,7 @@ namespace Graphics
             // Create the materials buffer device resource
             desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            if (!CreateBuffer(vk, desc, &resources.materialsSTB, &resources.materialsSTBMemory)) return false;
+            if (!CreateBufferBindless(vk, desc, &resources.materialsSTB, &resources.materialsSTBMemory, resources.materialHandle)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.materialsSTB), "Materials Structured Buffer", VK_OBJECT_TYPE_BUFFER);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.materialsSTBMemory), "Materials Structured Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1892,7 +1996,7 @@ namespace Graphics
             // Create the mesh offsets buffer device resource
             desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            if (!CreateBuffer(vk, desc, &resources.meshOffsetsRB, &resources.meshOffsetsRBMemory)) return false;
+            if (!CreateBufferBindless(vk, desc, &resources.meshOffsetsRB, &resources.meshOffsetsRBMemory, resources.meshOffsetsHandle)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.meshOffsetsRB), "Mesh Offsets Buffer", VK_OBJECT_TYPE_BUFFER);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.meshOffsetsRBMemory), "Mesh Offsets Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -1912,7 +2016,7 @@ namespace Graphics
             // Create the geometry data (mesh primitive) buffer device resource
             desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            if (!CreateBuffer(vk, desc, &resources.geometryDataRB, &resources.geometryDataRBMemory)) return false;
+            if (!CreateBufferBindless(vk, desc, &resources.geometryDataRB, &resources.geometryDataRBMemory, resources.geometryDataHandle)) return false;
         #ifdef GFX_NAME_OBJECTS
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.geometryDataRB), "Geometry Data Buffer", VK_OBJECT_TYPE_BUFFER);
             SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.geometryDataRBMemory), "Geometry Data Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
@@ -2008,17 +2112,19 @@ namespace Graphics
             resources.sceneIBMemory.resize(numMeshes);
             resources.sceneIBUploadBuffers.resize(numMeshes);
             resources.sceneIBUploadMemory.resize(numMeshes);
+            resources.sceneIBHandles.resize(numMeshes);
             for (uint32_t meshIndex = 0; meshIndex < numMeshes; meshIndex++)
             {
                 // Get the mesh
                 const Scenes::Mesh& mesh = scene.meshes[meshIndex];
 
                 // Create the index buffer and copy the index data to the GPU
-                if (!CreateIndexBuffer(vk, mesh,
+                if (!CreateIndexBufferBindless(vk, mesh,
                     &resources.sceneIBs[meshIndex],
                     &resources.sceneIBMemory[meshIndex],
                     &resources.sceneIBUploadBuffers[meshIndex],
-                    &resources.sceneIBUploadMemory[meshIndex])) return false;
+                    &resources.sceneIBUploadMemory[meshIndex],
+                    resources.sceneIBHandles[meshIndex])) return false;
             #ifdef GFX_NAME_OBJECTS
                 std::string name = "IB: " + mesh.name;
                 std::string memoryName = "IB: " + mesh.name + " Memory";
@@ -2040,17 +2146,19 @@ namespace Graphics
             resources.sceneVBMemory.resize(numMeshes);
             resources.sceneVBUploadBuffers.resize(numMeshes);
             resources.sceneVBUploadMemory.resize(numMeshes);
+            resources.sceneVBHandles.resize(numMeshes);
             for (uint32_t meshIndex = 0; meshIndex < numMeshes; meshIndex++)
             {
                 // Get the mesh
                 const Scenes::Mesh& mesh = scene.meshes[meshIndex];
 
                 // Create the vertex buffer and copy the data to the GPU
-                if (!CreateVertexBuffer(vk, mesh,
+                if (!CreateVertexBufferBindless(vk, mesh,
                     &resources.sceneVBs[meshIndex],
                     &resources.sceneVBMemory[meshIndex],
                     &resources.sceneVBUploadBuffers[meshIndex],
-                    &resources.sceneVBUploadMemory[meshIndex])) return false;
+                    &resources.sceneVBUploadMemory[meshIndex],
+                    resources.sceneVBHandles[meshIndex])) return false;
             #ifdef GFX_NAME_OBJECTS
                 std::string name = "VB: " + mesh.name;
                 std::string memoryName = "VB: " + mesh.name + " Memory";
@@ -2058,6 +2166,79 @@ namespace Graphics
                 SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneVBMemory[meshIndex]), memoryName.c_str(), VK_OBJECT_TYPE_DEVICE_MEMORY);
             #endif
             }
+
+            return true;
+        }
+
+        /**
+         * Create the scene geometry indexing buffers, i.e. buffers of scene mesh index/vertex buffer handles
+         */
+        bool CreateSceneGeometryIndexingBuffers(Globals& vk, Resources& resources, const Scenes::Scene& scene) {
+            uint32_t numMeshes = static_cast<uint32_t>(scene.meshes.size());
+
+            // Scene index buffer handles
+
+            // Create the sceneIBHandle buffer upload resource
+            uint32_t bufferSize = ALIGN(16, sizeof(uint32_t) * numMeshes);
+            BufferDesc desc = { bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
+            if (!CreateBuffer(vk, desc, &resources.sceneIBHUploadBuffer, &resources.sceneIBHUploadMemory)) return false;
+#ifdef GFX_NAME_OBJECTS
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneIBHUploadBuffer), "Scene IB Handle Upload Buffer", VK_OBJECT_TYPE_BUFFER);
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneIBHUploadMemory), "Scene IB Handle Upload Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
+#endif
+
+            // Create the sceneIBHandle buffer device resource
+            desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            if (!CreateBufferBindless(vk, desc, &resources.sceneIBH, &resources.sceneIBHMemory, resources.sceneIBHHandle)) return false;
+#ifdef GFX_NAME_OBJECTS
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneIBH), "Scene IB Handle Buffer", VK_OBJECT_TYPE_BUFFER);
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneIBHMemory), "Scene IB Handle Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
+#endif
+
+            // Scene vertex buffer handles
+
+            // Create the sceneVBHandle buffer upload resource
+            desc = { bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT };
+            if (!CreateBuffer(vk, desc, &resources.sceneVBHUploadBuffer, &resources.sceneVBHUploadMemory)) return false;
+#ifdef GFX_NAME_OBJECTS
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneVBHUploadBuffer), "Scene VB Handle Upload Buffer", VK_OBJECT_TYPE_BUFFER);
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneVBHUploadMemory), "Scene VB Handle Upload Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
+#endif
+
+            // Create the sceneVBHandle buffer device resource
+            desc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            desc.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            if (!CreateBufferBindless(vk, desc, &resources.sceneVBH, &resources.sceneVBHMemory, resources.sceneVBHHandle)) return false;
+#ifdef GFX_NAME_OBJECTS
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneVBH), "Scene VB Handle Buffer", VK_OBJECT_TYPE_BUFFER);
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(resources.sceneVBHMemory), "Scene VB Handle Buffer Memory", VK_OBJECT_TYPE_DEVICE_MEMORY);
+#endif
+
+            // Copy the scene index/vertex buffer handles to the upload buffers
+            VKCHECK(vkMapMemory(vk.device, resources.sceneIBHUploadMemory, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&resources.sceneIBHPtr)));
+            VKCHECK(vkMapMemory(vk.device, resources.sceneVBHUploadMemory, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&resources.sceneVBHPtr)));
+
+            uint8_t* sceneIBHAddress = resources.sceneIBHPtr;
+            uint8_t* sceneVBHAddress = resources.sceneVBHPtr;
+            for (uint32_t meshIndex = 0; meshIndex < numMeshes; meshIndex++) {
+                // Copy the scene index/vertex buffer handles to the upload buffer
+                memcpy(sceneIBHAddress, &resources.sceneIBHandles[meshIndex], sizeof(uint32_t));
+                sceneIBHAddress += sizeof(uint32_t);
+
+                memcpy(sceneVBHAddress, &resources.sceneVBHandles[meshIndex], sizeof(uint32_t));
+                sceneVBHAddress += sizeof(uint32_t);
+            }
+            vkUnmapMemory(vk.device, resources.sceneIBHUploadMemory);
+            vkUnmapMemory(vk.device, resources.sceneVBHUploadMemory);
+
+            // Schedule a copy of the upload buffers to the device buffers
+            VkBufferCopy bufferCopy = {};
+            bufferCopy.size = bufferSize;
+            vkCmdCopyBuffer(vk.cmdBuffer[vk.frameIndex], resources.sceneIBHUploadBuffer, resources.sceneIBH, 1, &bufferCopy);
+
+            bufferCopy.size = bufferSize;
+            vkCmdCopyBuffer(vk.cmdBuffer[vk.frameIndex], resources.sceneVBHUploadBuffer, resources.sceneVBH, 1, &bufferCopy);
 
             return true;
         }
@@ -2521,11 +2702,98 @@ namespace Graphics
             return true;
         }
 
+        template <typename T, typename Pred>
+        bool ContainsIf(const std::vector<T>& vs, Pred&& pred) {
+            for (auto& v : vs) {
+                if (pred(v)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        std::vector<const char*> FilterInstanceLayers(const std::vector<const char*>& request_layers) {
+            std::vector<const char*> enabled_layers{};
+            uint32_t available_layer_count = 0;
+            vkEnumerateInstanceLayerProperties(&available_layer_count, nullptr);
+            std::vector<VkLayerProperties> available_layers{};
+            available_layers.resize(available_layer_count);
+            vkEnumerateInstanceLayerProperties(&available_layer_count, available_layers.data());
+
+            for (auto request : request_layers) {
+                if (ContainsIf(available_layers, [&](const VkLayerProperties& layer) {
+                    return strcmp(layer.layerName, request) == 0;
+                    })) {
+                    enabled_layers.push_back(request);
+                }
+            }
+
+            return enabled_layers;
+        }
+
+        std::vector<const char*> FilterInstanceExtensions(const std::vector<const char*>& request_extensions) {
+            std::vector<const char*> enabled_extensions;
+
+            uint32_t available_extension_count = 0;
+            vkEnumerateInstanceExtensionProperties(nullptr, &available_extension_count, nullptr);
+            std::vector<VkExtensionProperties> available_extensions{};
+            available_extensions.resize(available_extension_count);
+            vkEnumerateInstanceExtensionProperties(nullptr, &available_extension_count, available_extensions.data());
+
+            for (auto request : request_extensions) {
+                if (ContainsIf(available_extensions, [&](const VkExtensionProperties& extension) {
+                    return strcmp(request, extension.extensionName) == 0;
+                    })) {
+                    enabled_extensions.push_back(request);
+                }
+            }
+
+            return enabled_extensions;
+        }
+
+        VkDebugUtilsMessengerCreateInfoEXT DefaultDebugUtilsMessengerCreateInfo() {
+            VkDebugUtilsMessengerCreateInfoEXT create_info{};
+            create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            create_info.messageSeverity =
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            create_info.pfnUserCallback = DebugUtilsMessengerCallback;
+            create_info.pUserData = nullptr;  // Optional
+            return create_info;
+        }
+
         /**
          * Create a Vulkan device.
          */
-        bool CreateDevice(Globals& vk, Configs::Config& config)
-        {
+        bool CreateDevice(Globals& vk, Configs::Config& config) {
+            // Initialize volk first before creating any vulkan objects
+            // better use only one load method, native vulkan or volk
+            // now RTXGI use vulkan and viwo use volk
+            VPE::VulkanContext::InitVolk();
+
+            //// print the address of vkCreateInstance
+            //FILE* fp = fopen("vkCreateInstance.txt", "w");
+            //fprintf(fp, "vkCreateInstance address in Vulkan.cpp: %p\n", vkCreateInstance);
+            //HMODULE hModule = GetModuleHandle(NULL);
+            //fprintf(fp, "TestHarness-VK.exe address: %p\n", hModule);
+            //HMODULE hDll = GetModuleHandle("RenderCore.dll");
+            //fprintf(fp, "RenderCore.dll address: %p\n", hDll);
+
+            //HMODULE module = LoadLibraryA("vulkan-1.dll");
+            //PFN_vkCreateInstance vkCreateInstance_address = (PFN_vkCreateInstance)(void(*)(void))GetProcAddress(module, "vkCreateInstance");
+            //fprintf(fp, "vkCreateInstance address in vulkan-1.dll: %p\n", vkCreateInstance_address);
+
+            //module = LoadLibraryA("RenderCore.dll");
+            //vkCreateInstance_address = (PFN_vkCreateInstance)(void(*)(void))GetProcAddress(module, "vkCreateInstance");
+            //fprintf(fp, "vkCreateInstance address in RenderCore.dll: %p\n", vkCreateInstance_address);
+
+            //fclose(fp);
+
             if(!CreateInstance(vk)) return false;
             if(!CreateSurface(vk)) return false;
             if(!CreateDeviceInternal(vk, config)) return false;
@@ -2689,6 +2957,35 @@ namespace Graphics
         }
 
         /**
+         * Create a buffer, allocate and bind device memory to the buffer, and register bindless.
+         */
+        bool CreateBufferBindless(Globals& vk, const BufferDesc& info, VkBuffer* buffer, VkDeviceMemory* memory, uint32_t& bindless_handle) {
+            // Describe the buffer
+            VkBufferCreateInfo bufferCreateInfo = {};
+            bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            bufferCreateInfo.size = info.size;
+            bufferCreateInfo.usage = info.usage;
+
+            // Create the buffer
+            VKCHECK(vkCreateBuffer(vk.device, &bufferCreateInfo, nullptr, buffer));
+
+            // Describe the memory allocation
+            AllocateMemoryDesc desc = {};
+            vkGetBufferMemoryRequirements(vk.device, *buffer, &desc.requirements);
+            desc.properties = info.memoryPropertyFlags;
+            desc.flags = info.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT ? VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT : 0;
+
+            // Allocate and bind memory to the buffer
+            if (!AllocateMemory(vk, desc, memory)) return false;
+            VKCHECK(vkBindBufferMemory(vk.device, *buffer, *memory, 0));
+
+            // Register bindless
+            bindless_handle = VPE::VulkanContext::Get()->RegisterBindlessBuffer(*buffer);
+
+            return true;
+        }
+
+        /**
          * Create a texture, allocate and bind device memory, and create the texture's image view.
          */
         bool CreateTexture(Globals& vk, const TextureDesc& info, VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView)
@@ -2740,14 +3037,85 @@ namespace Graphics
         }
 
         /**
-         * Create a shader module from compiled DXIL bytecode.
+         * Create a texture, allocate and bind device memory, create the texture's image view, and register bindless.
+         */
+        bool CreateTextureBindlessStorage(Globals& vk, const TextureDesc& info, VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView, uint32_t & handle) {
+            // Describe the texture
+            VkImageCreateInfo imageCreateInfo = {};
+            imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageCreateInfo.format = info.format;
+            imageCreateInfo.extent.width = info.width;
+            imageCreateInfo.extent.height = info.height;
+            imageCreateInfo.extent.depth = 1;
+            imageCreateInfo.mipLevels = info.mips;
+            imageCreateInfo.arrayLayers = info.arraySize;
+            imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCreateInfo.usage = info.usage;
+            imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            // Create the texture
+            VKCHECK(vkCreateImage(vk.device, &imageCreateInfo, nullptr, image));
+
+            // Describe the memory allocation
+            AllocateMemoryDesc desc = {};
+            vkGetImageMemoryRequirements(vk.device, *image, &desc.requirements);
+            desc.properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            desc.flags = 0;
+
+            // Allocate the texture memory and bind it to the texture
+            if (!AllocateMemory(vk, desc, imageMemory)) return false;
+            VKCHECK(vkBindImageMemory(vk.device, *image, *imageMemory, 0));
+
+            // Describe the texture's image view
+            VkImageViewCreateInfo imageViewCreateInfo = {};
+            imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageViewCreateInfo.format = imageCreateInfo.format;
+            imageViewCreateInfo.image = *image;
+            imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageViewCreateInfo.subresourceRange.levelCount = info.mips;
+            imageViewCreateInfo.subresourceRange.layerCount = info.arraySize;
+            if (info.arraySize > 1) imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            else imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+            // Create the texture's image view
+            VKCHECK(vkCreateImageView(vk.device, &imageViewCreateInfo, nullptr, imageView));
+
+            // Register bindless for storage images
+            if (!(info.usage & VK_IMAGE_USAGE_STORAGE_BIT)) return false;
+            handle = VPE::VulkanContext::Get()->RegisterBindlessStorageImage(*imageView);
+
+            return true;
+        }
+
+        /**
+         * Create a shader module from compiled DXIL bytecode or SPIR-V.
          */
         bool CreateShaderModule(VkDevice device, const Shaders::ShaderProgram& shader, VkShaderModule* result)
         {
+            std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {
+                VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT
+            };
+
             VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
             shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-            shaderModuleCreateInfo.pCode = reinterpret_cast<uint32_t*>(shader.bytecode->GetBufferPointer());
-            shaderModuleCreateInfo.codeSize = shader.bytecode->GetBufferSize();
+            if (shader.bytecode != nullptr) {
+                shaderModuleCreateInfo.pCode = reinterpret_cast<uint32_t*>(shader.bytecode->GetBufferPointer());
+                shaderModuleCreateInfo.codeSize = shader.bytecode->GetBufferSize();
+            }
+            else {
+                // enable GPU Assisted Validation for shaders selectively
+                VkValidationFeaturesEXT validationFeatures = {};
+                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                validationFeatures.enabledValidationFeatureCount = 1;
+                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures.data();
+
+                shaderModuleCreateInfo.pCode = shader.spirv.data();
+                shaderModuleCreateInfo.codeSize = shader.spirv.size() * 4; // SPIR-V code is organized in 32-bit words, codeSize is in bytes.
+                shaderModuleCreateInfo.pNext = &validationFeatures;
+            }
 
             // Create the shader module
             VKCHECK(vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, result));
@@ -3132,6 +3500,14 @@ namespace Graphics
             CHECK(CreateSemaphores(vk), "create semaphores!", log);
             CHECK(CreateDescriptorPool(vk, resources), "create descriptor pool!", log);
             CHECK(CreateGlobalPipelineLayout(vk, resources), "create global pipeline layout!", log);
+
+            // Create the (bindless) pipeline layout for GLSL test
+            VPE::VulkanContext::InitDDGI(vk.instance, vk.physicalDevice, vk.device, vk.queue, vk.queueFamilyIndex, vk.commandPool, resources.descriptorPool);
+#ifdef GFX_NAME_OBJECTS
+            SetObjectName(vk.device, reinterpret_cast<uint64_t>(VPE::VulkanContext::Get()->GetBufferAddressBuffer()), "ViWo Global Buffer Address Buffer", VK_OBJECT_TYPE_BUFFER);
+            // not found VkObjectType for VmaAllocation
+#endif
+
             CHECK(CreateSamplers(vk, resources), "create samplers!", log);
             CHECK(CreateViewport(vk), "create viewport!", log);
             CHECK(CreateScissor(vk), "create scissor!", log);
@@ -3154,6 +3530,7 @@ namespace Graphics
             CHECK(CreateSceneMaterialIndexingBuffers(vk, resources, scene), "create scene material indexing buffers!", log);
             CHECK(CreateSceneIndexBuffers(vk, resources, scene), "create scene index buffers!", log);
             CHECK(CreateSceneVertexBuffers(vk, resources, scene), "create scene vertex buffers!", log);
+            CHECK(CreateSceneGeometryIndexingBuffers(vk, resources, scene), "create scene geometry indexing buffers!", log);
             CHECK(CreateSceneBLAS(vk, resources, scene), "create scene bottom level acceleration structures!", log);
             CHECK(CreateSceneTLAS(vk, resources, scene), "create scene top level acceleration structure!", log);
             CHECK(CreateSceneTextures(vk, resources, scene, log), "create scene textures!", log);
@@ -3446,6 +3823,12 @@ namespace Graphics
          */
         bool WaitForPrevGPUFrame(Globals& vk)
         {
+            VkResult status = vkGetFenceStatus(vk.device, vk.fences[vk.frameIndex]);
+            if (status == VK_ERROR_DEVICE_LOST) {
+                //printf("Fence already in lost state\n");
+                Graphics::UI::MessageBox("Fence already in lost state\n");
+                return false;
+            }
             VKCHECK(vkWaitForFences(vk.device, 1, &vk.fences[vk.frameIndex], VK_TRUE, UINT64_MAX));
             VKCHECK(vkResetFences(vk.device, 1, &vk.fences[vk.frameIndex]));
             return true;

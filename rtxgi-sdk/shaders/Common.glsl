@@ -61,7 +61,7 @@ vec3 RTXGISphericalFibonacci(float sampleIndex, float numSamples)
  */
 uint RTXGIFloatToUint(float v, float scale)
 {
-    return (uint)floor(v * scale + 0.5f);
+    return uint(floor(v * scale + 0.5f));
 }
 
 /**
@@ -69,22 +69,22 @@ uint RTXGIFloatToUint(float v, float scale)
  * All channels use 10 bits and 2 bits are unused.
  * Compliment of RTXGIUintToFloat3().
  */
-uint RTXGIFloat3ToUint(vec3 input)
+uint RTXGIFloat3ToUint(vec3 input_vec)
 {
-    return (RTXGIFloatToUint(input.r, 1023.f)) | (RTXGIFloatToUint(input.g, 1023.f) << 10) | (RTXGIFloatToUint(input.b, 1023.f) << 20);
+    return (RTXGIFloatToUint(input_vec.r, 1023.f)) | (RTXGIFloatToUint(input_vec.g, 1023.f) << 10) | (RTXGIFloatToUint(input_vec.b, 1023.f) << 20);
 }
 
 /**
  * Unpack a packed 32-bit unsigned integer to a float3.
  * Compliment of RTXGIFloat3ToUint().
  */
-vec3 RTXGIUintToFloat3(uint input)
+vec3 RTXGIUintToFloat3(uint input_int)
 {
-    vec3 output;
-    output.x = (float)(input & 0x000003FF) / 1023.f;
-    output.y = (float)((input >> 10) & 0x000003FF) / 1023.f;
-    output.z = (float)((input >> 20) & 0x000003FF) / 1023.f;
-    return output;
+    vec3 output_vec;
+    output_vec.x = float(input_int & 0x000003FF) / 1023.f;
+    output_vec.y = float((input_int >> 10) & 0x000003FF) / 1023.f;
+    output_vec.z = float((input_int >> 20) & 0x000003FF) / 1023.f;
+    return output_vec;
 }
 
 //------------------------------------------------------------------------

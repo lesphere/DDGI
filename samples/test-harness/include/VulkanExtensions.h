@@ -17,5 +17,6 @@
 #endif
 #include <vulkan/vulkan.h>
 
-void LoadDeviceExtensions(VkDevice device);
-void LoadInstanceExtensions(VkInstance instance);
+// comment VulkanExtensions to avoid multiple devices conflicts
+//void LoadDeviceExtensions(VkDevice device);
+//void LoadInstanceExtensions(VkInstance instance);

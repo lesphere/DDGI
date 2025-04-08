@@ -33,6 +33,8 @@
 
 #include <DirectXMath.h>     // Removes sal.h include since this is covered by winadapter.h on Linux
 
+#include "Vulkan/VulkanContext.h"
+
 #ifdef API_VULKAN
 #define GLFW_INCLUDE_VULKAN
 #endif

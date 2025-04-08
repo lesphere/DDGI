@@ -1,7 +1,7 @@
 #ifndef RTXGI_DDGI_PROBE_RAY_COMMON_GLSL
 #define RTXGI_DDGI_PROBE_RAY_COMMON_GLSL
 
-#include "Common.glsl"
+#include "rtxgi-sdk/shaders/ddgi/include/Common.glsl"
 
 //------------------------------------------------------------------------
 // Probe Ray Data Texture Write Helpers
@@ -9,68 +9,68 @@
 
 void DDGIStoreProbeRayMiss(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance) {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4) {
-        ImageStore(RayData, coords, vec4(radiance, 1e27f));
+        ImageStore(RayData, ivec3(coords), vec4(radiance, 1e27f));
     }
 }
 
-void DDGIStoreProbeRayMiss(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance) {
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
-        ImageStore(RayData, coords, vec4(uintBitsToFloat(RTXGIFloat3ToUint(radiance)), 1e27f, 0.f, 0.f));
-    }
-}
+// void DDGIStoreProbeRayMiss(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance) {
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
+//         ImageStore(RayData, ivec3(coords), vec4(uintBitsToFloat(RTXGIFloat3ToUint(radiance)), 1e27f, 0.f, 0.f));
+//     }
+// }
 
 void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance, float hitT) {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4) {
         // Store color components and hit distance as 32-bit float values.
-        ImageStore(RayData, coords, vec4(radiance, hitT));
+        ImageStore(RayData, ivec3(coords), vec4(radiance, hitT));
     }
 }
 
-void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance, float hitT) {
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
-        // Use R32G32_FLOAT format (don't use R32G32_UINT since hit distance needs to be negative sometimes).
-        // Pack color as R10G10B10 in R32 and store hit distance in G32.
-        static const float c_threshold = 1.f / 255.f;
-        if (RTXGIMaxComponent(radiance.rgb) <= c_threshold) radiance.rgb = vec3(0.f, 0.f, 0.f);
-        ImageStore(RayData, coords, vec4(uintBitsToFloat(RTXGIFloat3ToUint(radiance.rgb)), hitT, 0.f, 0.f));
-    }
-}
+// void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, vec3 radiance, float hitT) {
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
+//         // Use R32G32_FLOAT format (don't use R32G32_UINT since hit distance needs to be negative sometimes).
+//         // Pack color as R10G10B10 in R32 and store hit distance in G32.
+//         const float c_threshold = 1.f / 255.f;
+//         if (RTXGIMaxComponent(radiance.rgb) <= c_threshold) radiance.rgb = vec3(0.f, 0.f, 0.f);
+//         ImageStore(RayData, ivec3(coords), vec4(uintBitsToFloat(RTXGIFloat3ToUint(radiance.rgb)), hitT, 0.f, 0.f));
+//     }
+// }
 
 void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
-    vec4 data = ImageLoad(RayData, coords);
+    vec4 data = ImageLoad(RayData, ivec3(coords));
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4) {
         data.w = hitT;
     }
-    ImageStore(RayData, coords, data);
+    ImageStore(RayData, ivec3(coords), data);
 }
 
-void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
-    vec4 data = ImageLoad(RayData, coords);
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
-        data.g = hitT;
-    }
-    ImageStore(RayData, coords, data);
-}
+// void DDGIStoreProbeRayFrontfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
+//     vec4 data = ImageLoad(RayData, ivec3(coords));
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
+//         data.g = hitT;
+//     }
+//     ImageStore(RayData, ivec3(coords), data);
+// }
 
 void DDGIStoreProbeRayBackfaceHit(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
     // Make the hit distance negative to mark a backface hit for blending, probe relocation, and probe classification.
     // Shorten the hit distance on a backface hit by 80% to decrease the influence of the probe during irradiance sampling.
-    vec4 data = ImageLoad(RayData, coords);
+    vec4 data = ImageLoad(RayData, ivec3(coords));
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4) {
         data.w = -hitT * 0.2f;
     }
-    ImageStore(RayData, coords, data);
+    ImageStore(RayData, ivec3(coords), data);
 }
 
-void DDGIStoreProbeRayBackfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
-    // Make the hit distance negative to mark a backface hit for blending, probe relocation, and probe classification.
-    // Shorten the hit distance on a backface hit by 80% to decrease the influence of the probe during irradiance sampling.
-    vec4 data = ImageLoad(RayData, coords);
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
-        data.g = -hitT * 0.2f;
-    }
-    ImageStore(RayData, coords, data);
-}
+// void DDGIStoreProbeRayBackfaceHit(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume, float hitT) {
+//     // Make the hit distance negative to mark a backface hit for blending, probe relocation, and probe classification.
+//     // Shorten the hit distance on a backface hit by 80% to decrease the influence of the probe during irradiance sampling.
+//     vec4 data = ImageLoad(RayData, ivec3(coords));
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2) {
+//         data.g = -hitT * 0.2f;
+//     }
+//     ImageStore(RayData, ivec3(coords), data);
+// }
 
 //------------------------------------------------------------------------
 // Probe Ray Data Texture Read Helpers
@@ -80,37 +80,37 @@ vec3 DDGILoadProbeRayRadiance(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVo
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4)
     {
-        return ImageLoad(RayData, coords).rgb;
+        return ImageLoad(RayData, ivec3(coords)).rgb;
     }
     return vec3(0.f, 0.f, 0.f);
 }
 
-vec3 DDGILoadProbeRayRadiance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume)
-{
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
-    {
-        return RTXGIUintToFloat3(asuint(ImageLoad(RayData, coords).r));
-    }
-    return vec3(0.f, 0.f, 0.f);
-}
+// vec3 DDGILoadProbeRayRadiance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume)
+// {
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
+//     {
+//         return RTXGIUintToFloat3(floatBitsToUint(ImageLoad(RayData, ivec3(coords)).r));
+//     }
+//     return vec3(0.f, 0.f, 0.f);
+// }
 
 float DDGILoadProbeRayDistance(Image2DArray_rgba32f RayData, uvec3 coords, DDGIVolumeDescGPU volume)
 {
     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x4)
     {
-        return ImageLoad(RayData, coords).a;
+        return ImageLoad(RayData, ivec3(coords)).a;
     }
     return 0.f;
 }
 
-float DDGILoadProbeRayDistance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume)
-{
-    if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
-    {
-        return ImageLoad(RayData, coords).g;
-    }
-    return 0.f;
-}
+// float DDGILoadProbeRayDistance(Image2DArray_rg32f RayData, uvec3 coords, DDGIVolumeDescGPU volume)
+// {
+//     if (volume.probeRayDataFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_F32x2)
+//     {
+//         return ImageLoad(RayData, ivec3(coords)).g;
+//     }
+//     return 0.f;
+// }
 
 //------------------------------------------------------------------------
 // Probe Ray Direction
@@ -144,4 +144,4 @@ vec3 DDGIGetProbeRayDirection(int rayIndex, DDGIVolumeDescGPU volume)
 }
 
 
-#endif // RTXGI_DDGI_PROBE_RAY_COMMON_HLSL
+#endif // RTXGI_DDGI_PROBE_RAY_COMMON_GLSL

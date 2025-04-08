@@ -143,29 +143,49 @@ namespace rtxgi
         {
             if (type == EDDGIVolumeTextureType::RayData)
             {
-                if (format == EDDGIVolumeTextureFormat::F32x2) return VK_FORMAT_R32G32_SFLOAT;
-                else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                //if (format == EDDGIVolumeTextureFormat::F32x2) return VK_FORMAT_R32G32_SFLOAT;
+                //else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                if (format != EDDGIVolumeTextureFormat::F32x4) {
+                    throw std::runtime_error("Unsupported RayData format");
+                }
+                return VK_FORMAT_R32G32B32A32_SFLOAT;
             }
             else if (type == EDDGIVolumeTextureType::Irradiance)
             {
-                if (format == EDDGIVolumeTextureFormat::U32) return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-                else if (format == EDDGIVolumeTextureFormat::F16x4) return VK_FORMAT_R16G16B16A16_SFLOAT;
-                else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                //if (format == EDDGIVolumeTextureFormat::U32) return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+                //else if (format == EDDGIVolumeTextureFormat::F16x4) return VK_FORMAT_R16G16B16A16_SFLOAT;
+                //else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                if (format != EDDGIVolumeTextureFormat::F32x4) {
+                    throw std::runtime_error("Unsupported Irradiance format");
+                }
+                return VK_FORMAT_R32G32B32A32_SFLOAT;
             }
             else if (type == EDDGIVolumeTextureType::Distance)
             {
-                if (format == EDDGIVolumeTextureFormat::F16x2) return VK_FORMAT_R16G16_SFLOAT;  // Note: in large environments FP16 may not be sufficient
-                else if (format == EDDGIVolumeTextureFormat::F32x2) return VK_FORMAT_R32G32_SFLOAT;
+                //if (format == EDDGIVolumeTextureFormat::F16x2) return VK_FORMAT_R16G16_SFLOAT;  // Note: in large environments FP16 may not be sufficient
+                //else if (format == EDDGIVolumeTextureFormat::F32x2) return VK_FORMAT_R32G32_SFLOAT;
+                if (format != EDDGIVolumeTextureFormat::F32x2) {
+                    throw std::runtime_error("Unsupported Distance format");
+                }
+                return VK_FORMAT_R32G32_SFLOAT;
             }
             else if (type == EDDGIVolumeTextureType::Data)
             {
-                if (format == EDDGIVolumeTextureFormat::F16x4) return VK_FORMAT_R16G16B16A16_SFLOAT;
-                else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                //if (format == EDDGIVolumeTextureFormat::F16x4) return VK_FORMAT_R16G16B16A16_SFLOAT;
+                //else if (format == EDDGIVolumeTextureFormat::F32x4) return VK_FORMAT_R32G32B32A32_SFLOAT;
+                if (format != EDDGIVolumeTextureFormat::F32x4) {
+                    throw std::runtime_error("Unsupported Data format");
+                }
+                return VK_FORMAT_R32G32B32A32_SFLOAT;
             }
             else if (type == EDDGIVolumeTextureType::Variability)
             {
-                if (format == EDDGIVolumeTextureFormat::F16) return VK_FORMAT_R16_SFLOAT;
-                else if (format == EDDGIVolumeTextureFormat::F32) return VK_FORMAT_R32_SFLOAT;
+                //if (format == EDDGIVolumeTextureFormat::F16) return VK_FORMAT_R16_SFLOAT;
+                //else if (format == EDDGIVolumeTextureFormat::F32) return VK_FORMAT_R32_SFLOAT;
+                if (format != EDDGIVolumeTextureFormat::F32) {
+                    throw std::runtime_error("Unsupported Variability format");
+                }
+                return VK_FORMAT_R32_SFLOAT;
             }
             else if (type == EDDGIVolumeTextureType::VariabilityAverage)
             {
@@ -1066,6 +1086,14 @@ namespace rtxgi
             m_probeDataView = unmanaged.probeDataView;
             m_probeVariabilityView = unmanaged.probeVariabilityView;
             m_probeVariabilityAverageView = unmanaged.probeVariabilityAverageView;
+
+            // Texture Array Handles
+            m_probeRayDataHandleStorage = unmanaged.probeRayDataHandleStorage;
+            m_probeIrradianceHandleStorage = unmanaged.probeIrradianceHandleStorage;
+            m_probeDistanceHandleStorage = unmanaged.probeDistanceHandleStorage;
+            m_probeDataHandleStorage = unmanaged.probeDataHandleStorage;
+            m_probeVariabilityHandleStorage = unmanaged.probeVariabilityHandleStorage;
+            m_probeVariabilityAverageHandleStorage = unmanaged.probeVariabilityAverageHandleStorage;
 
             // Shader Modules
             m_probeBlendingIrradianceModule = unmanaged.probeBlendingIrradianceModule;

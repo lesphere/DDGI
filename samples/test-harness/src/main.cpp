@@ -226,6 +226,7 @@ int Run(const std::vector<std::string>& arguments)
 
         // Wait for the previous frame's GPU work to complete
         CPU_TIMESTAMP_BEGIN(waitStat);
+        VPE::VulkanContext::Get()->BeginFrame(); // wait for GL and do delayed destroy for VulkanDelayDrop
         if (!Graphics::WaitForPrevGPUFrame(gfx)) { log << "GPU took too long to complete, device removed!"; break; }
         CPU_TIMESTAMP_ENDANDRESOLVE(waitStat);
 

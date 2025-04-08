@@ -9,7 +9,7 @@
  * Complement of UnpackPayload().
  */
 PackedPayload PackPayload(Payload unpacked) {
-    PackedPayload packed = PackedPayload(0.f, vec3(0.f), uvec4(0u), uvec3(0u));;
+    PackedPayload packed = PackedPayload(0.f, vec3(0.f), uvec4(0u), uvec3(0u));
     packed.hitT = unpacked.hitT;
     packed.worldPosition = unpacked.worldPosition;
 
@@ -55,15 +55,15 @@ Payload UnpackPayload(PackedPayload packed) {
 /**
  * Load a triangle's indices.
  */
-uvec3 LoadIndices(Buffer sceneIBH, uint meshIndex, uint primitiveIndex, GeometryData geometry) {
+uvec3 LoadIndices(uint meshIndex, uint primitiveIndex, GeometryData geometry) {
     uint address = geometry.indexByteAddress + (primitiveIndex * 3) * 4; // 3 indices per primitive, 4 bytes for each index
-    return ReadUInt3(GetIndexBuffer(sceneIBH, meshIndex), address);
+    return ReadUInt3(GetIndexBufferGlobalIndex(meshIndex), address);
 }
 
 // Function to load vertices
-void LoadVertices(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uint primitiveIndex, GeometryData geometry, out Vertex vertices[3]) {
+void LoadVertices(uint meshIndex, uint primitiveIndex, GeometryData geometry, out Vertex vertices[3]) {
     // Get the indices
-    uvec3 indices = LoadIndices(sceneIBH, meshIndex, primitiveIndex, geometry);
+    uvec3 indices = LoadIndices(meshIndex, primitiveIndex, geometry);
 
     // Load the vertices
     for (int i = 0; i < 3; i++) {
@@ -71,29 +71,29 @@ void LoadVertices(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uint primiti
         uint address = geometry.vertexByteAddress + indices[i] * 48; // Vertices contain 12 floats / 48 bytes
         
         // Load the position
-        vertices[i].position = uintBitsToFloat(ReadUInt3(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].position = uintBitsToFloat(ReadUInt3(GetVertexBufferGlobalIndex(meshIndex), address));
         address += 12;
 
         // Load the normal
-        vertices[i].normal = uintBitsToFloat(ReadUInt3(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].normal = uintBitsToFloat(ReadUInt3(GetVertexBufferGlobalIndex(meshIndex), address));
         address += 12;
 
         // Load the tangent
-        vertices[i].tangent = uintBitsToFloat(ReadUInt4(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].tangent = uintBitsToFloat(ReadUInt4(GetVertexBufferGlobalIndex(meshIndex), address));
         address += 16;
 
         // Load the texture coordinates
-        vertices[i].uv0 = uintBitsToFloat(ReadUInt2(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].uv0 = uintBitsToFloat(ReadUInt2(GetVertexBufferGlobalIndex(meshIndex), address));
     }
 }
 
 /**
  * Load a triangle's vertex data (only position and uv0).
  */
-void LoadVerticesPosUV0(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uint primitiveIndex, GeometryData geometry, out Vertex vertices[3])
+void LoadVerticesPosUV0(uint meshIndex, uint primitiveIndex, GeometryData geometry, out Vertex vertices[3])
 {
     // Get the indices
-    uvec3 indices = LoadIndices(sceneIBH, meshIndex, primitiveIndex, geometry);
+    uvec3 indices = LoadIndices(meshIndex, primitiveIndex, geometry);
 
     // Load the vertices
     uint address;
@@ -102,21 +102,21 @@ void LoadVerticesPosUV0(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uint p
         address = geometry.vertexByteAddress + (indices[i] * 12) * 4;  // Vertices contain 12 floats / 48 bytes
 
         // Load the position
-        vertices[i].position = uintBitsToFloat(ReadUInt3(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].position = uintBitsToFloat(ReadUInt3(GetVertexBufferGlobalIndex(meshIndex), address));
         address += 40; // skip normal and tangent
 
         // Load the texture coordinates
-        vertices[i].uv0 = uintBitsToFloat(ReadUInt2(GetVertexBuffer(sceneVBH, meshIndex), address));
+        vertices[i].uv0 = uintBitsToFloat(ReadUInt2(GetVertexBufferGlobalIndex(meshIndex), address));
     }
 }
 
 /**
  * Load (only) a triangle's texture coordinates and return the barycentric interpolated texture coordinates.
  */
-vec2 LoadAndInterpolateUV0(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uint primitiveIndex, GeometryData geometry, vec3 barycentrics)
+vec2 LoadAndInterpolateUV0(uint meshIndex, uint primitiveIndex, GeometryData geometry, vec3 barycentrics)
 {
     // Get the triangle indices
-    uvec3 indices = LoadIndices(sceneIBH, meshIndex, primitiveIndex, geometry);
+    uvec3 indices = LoadIndices(meshIndex, primitiveIndex, geometry);
 
     // Interpolate the texture coordinates
     uint address;
@@ -125,7 +125,7 @@ vec2 LoadAndInterpolateUV0(Buffer sceneIBH, Buffer sceneVBH, uint meshIndex, uin
     {
         address = geometry.vertexByteAddress + (indices[i] * 12) * 4;  // 12 floats (3: pos, 3: normals, 4:tangent, 2:uv0)
         address += 40;                                                // 40 bytes (10 * 4): skip position, normal, and tangent
-        uv0 += uintBitsToFloat(ReadUInt2(GetVertexBuffer(sceneVBH, meshIndex), address)) * barycentrics[i];
+        uv0 += uintBitsToFloat(ReadUInt2(GetVertexBufferGlobalIndex(meshIndex), address)) * barycentrics[i];
     }
 
     return uv0;
